@@ -47,7 +47,7 @@ void Install(VersionData *Data, uint8_t CheckVersion) {
   FetchStruct *Fetched = FetchPackages(Data);
 
   /* Second step: download the packages using the data we got above. */
-  // DownloadPackages(Fetched, Data);
+  DownloadPackages(Fetched, Data);
 
   /* Last step: install the packages. */
   InstallPackages(Fetched, Data);
