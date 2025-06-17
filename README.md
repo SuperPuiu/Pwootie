@@ -2,7 +2,7 @@
 Pwootie is a ROBLOX studio bootstrapper written in C, Linux only compatible. It doesn't do anything better than the other bootstrappers, but it does its job good enough. It should note that it's a barebones bootstrapper, but maybe in the future it'll get be better.
 
 # Building
-To build from source you need the following: `curl`, `libzip` and of course `wine`. Make sure you have them downloaded before attempting to build the project.
+To build from source you need the following: `curl`, `libzip`. Make sure you have them downloaded before attempting to build the project.
 
 # Troubleshooting
 There are a few issues to keep in mind, such as the fact that cursor locking is not working (at least on the wayland side, if you're using the packaged version of WINE which your distribution has). As a temporary fix for the cursor lock issue, the version of WINE which vinegar uses could be used here as well. If Vulkan fails to start for whatever reason, [this link might be useful](https://bbs.archlinux.org/viewtopic.php?id=301979). If it's not, open an issue and I'll try to my best to document the issue and to help.
