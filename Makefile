@@ -4,7 +4,7 @@ SRCS = $(wildcard src/*.c)
 
 all:
 	mkdir -p bin
-	gcc $(CFLAGS) $(LIBS) $(SRCS) -fsanitize=address -g -o bin/EndProduct -I include/ -lzip
+	gcc $(CFLAGS) $(LIBS) $(SRCS) -fsanitize=address -g -o bin/Pwootie -I include/ -lzip
 
 run:
-	./bin/EndProduct install
+	./bin/Pwootie install
