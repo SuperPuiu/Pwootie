@@ -1,10 +1,14 @@
 CFLAGS = -Wall -Wextra -Wshadow -o3
-LIBS = -lcurl
+LIBS = -lcurl -lzip
 SRCS = $(wildcard src/*.c)
 
 all:
 	mkdir -p bin
-	gcc $(CFLAGS) $(LIBS) $(SRCS) -fsanitize=address -g -o bin/Pwootie -I include/ -lzip
+	gcc $(CFLAGS) $(LIBS) $(SRCS) -fsanitize=address -g -o bin/Pwootie -I include/
+
+release:
+	mkdir -p bin
+	gcc $(CFLAGS) $(LIBS) $(SRCS) -o bin/Pwootie -I include/
 
 run:
 	./bin/Pwootie install
