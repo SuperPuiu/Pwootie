@@ -8,6 +8,9 @@
 #include <sys/stat.h>
 #include <Shared.h>
 #include <errno.h>
+#include <pthread.h>
+
+pthread_t RunThread;
 
 char *GetPrefixPath() {
   uint32_t HomeLength = strlen(getenv("HOME")), InstallDirLength = strlen(INSTALL_DIR);
@@ -56,6 +59,19 @@ void SetupPrefix() {
   free(Location);
 }
 
+void *SystemThread(void *Command) {
+  char *StrCommand = Command;
+
+  system(StrCommand);
+
+  /* If system() ended then I'm pretty sure we can safely cancel the thread. */
+  pthread_cancel(RunThread);
+  
+  /* It should be obvious why we free it here. */
+  free(Command);
+  return 0;
+}
+
 void Run(char *Argument, char *Version) {
   if (Argument == NULL)
     Argument = "";
@@ -85,9 +101,8 @@ void Run(char *Argument, char *Version) {
 
   /* Apparently system() can have some security vulnerabilities? eh? */
   setenv(WINEPREFIX, Location, 1);
-  system(Command);
+  pthread_create(&RunThread, NULL, SystemThread, (void*)Command);
   
-  free(Command);
   free(Executable);
   free(Location);
 }
