@@ -60,3 +60,27 @@ void GetVersionData(VersionData *Data) {
 
   free(Chunk.Memory);
 }
+
+/* Could be useful for testing if the CDN works. */
+void GetCDNVersion(MemoryStruct *VersionStruct) {
+  CURLcode Response;
+  size_t LengthURL = strlen(CDN_URL), LengthVersion = strlen("version");
+  char *FullURL = malloc((LengthURL + LengthVersion + 1) * sizeof(char)); /* One extra byte for null terminator. */
+  
+  if (!FullURL) {
+    printf("[FATAL]: Unable to allocate FullURL in GetVersion function.\n");
+    exit(EXIT_FAILURE);
+  }
+
+  VersionStruct->Memory = malloc(1);
+  VersionStruct->Size = 0;
+  
+  memcpy(FullURL, CDN_URL, LengthURL);
+  memcpy(FullURL + LengthURL, "version", LengthVersion);
+  FullURL[LengthURL + LengthVersion + 1] = 0;
+
+  Response = CurlGet(VersionStruct, FullURL);
+
+  if (Response != CURLE_OK) { printf("GetVersion failed: %s\n", curl_easy_strerror(Response)); }
+  free(FullURL);
+}
