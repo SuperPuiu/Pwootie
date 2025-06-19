@@ -43,12 +43,12 @@ typedef struct FetchPackagesStruct {
 
 /* GetVersionData.c */
 void GetVersionData(VersionData *Data);
+void GetCDNVersion(MemoryStruct *VersionStruct);
 
 /* Installer.c */
 void Install(VersionData *Data, uint8_t CheckVersion);
 
 /* Utilities.c */
-void GetCDNVersion(MemoryStruct *VersionStruct);
 void DeleteDirectories();
 void ReplacePathSlashes(char *Path);
 
