@@ -11,4 +11,4 @@ release:
 	gcc $(CFLAGS) $(LIBS) $(SRCS) -o bin/Pwootie -I include/
 
 run:
-	./bin/PwootieTest install
+	./bin/PwootieTest
