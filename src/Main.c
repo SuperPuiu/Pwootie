@@ -2,7 +2,7 @@
 
 int main(int argc, char **argv) {
   curl_global_init(CURL_GLOBAL_ALL);
-  
+
   VersionData Data;
 
   SetupHandles();
@@ -28,6 +28,7 @@ int main(int argc, char **argv) {
   free(Data.BootstrapperVersion);
 
   curl_global_cleanup();
+  PwootieExit();
 
   return 0;
 }
