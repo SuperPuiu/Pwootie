@@ -41,16 +41,32 @@ typedef struct FetchPackagesStruct {
   uint8_t   TotalPackages;
 } FetchStruct;
 
+/* GetVersionData.c */
 void GetVersionData(VersionData *Data);
-void GetCDNVersion(MemoryStruct *VersionStruct);
+
+/* Installer.c */
 void Install(VersionData *Data, uint8_t CheckVersion);
-void SetupHandles();
+
+/* Utilities.c */
+void GetCDNVersion(MemoryStruct *VersionStruct);
 void DeleteDirectories();
 void ReplacePathSlashes(char *Path);
+
+/* Wine.c */
 void SetupPrefix();
 void Run(char *Argument, char *Version);
-FILE *OpenPwootieFile(char *Mode);
+
+/* Pwootie.c */
+void PwootieExit();
+uint8_t OpenPwootieFile();
+void PwootieWriteEntry(char *Entry, char *Data);
+char *PwootieReadEntry(char *Entry);
+
+/* Instructions.c */
 char **ExtractInstructions(FILE *Installer, FetchStruct *Fetched);
+
+/* CurlWrappers.c */
+void SetupHandles();
 CURLcode    CurlDownload(FILE *File, char *WithURL);
 CURLcode    CurlGet(MemoryStruct *Chunk, char *WithURL);
 
