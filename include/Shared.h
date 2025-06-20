@@ -17,6 +17,12 @@
 
 #define unused(x) ((void) (x))
 
+typedef enum ErrorFlags {
+  ERR_STANDARD  = (1 << 0),
+  ERR_MEMORY    = (1 << 1),
+  ERR_NOEXIT    = (1 << 2)
+} ErrorFlags;
+
 typedef struct MemoryStruct {
   char    *Memory;
   size_t  Size;
@@ -42,18 +48,19 @@ typedef struct FetchPackagesStruct {
 } FetchStruct;
 
 /* GetVersionData.c */
-void GetVersionData(VersionData *Data);
-void GetCDNVersion(MemoryStruct *VersionStruct);
+int8_t GetVersionData(VersionData *Data);
+int8_t GetCDNVersion(MemoryStruct *VersionStruct);
 
 /* Installer.c */
 void Install(VersionData *Data, uint8_t CheckVersion);
 
-/* Utilities.c */
-void DeleteDirectories();
+/* Filesystem.c */
 void ReplacePathSlashes(char *Path);
+void BuildDirectoryTree(char *Path);
 
 /* Wine.c */
-void SetupPrefix();
+int8_t SetupPrefix();
+void SetupProton();
 void Run(char *Argument, char *Version);
 
 /* Pwootie.c */
@@ -64,6 +71,9 @@ char *PwootieReadEntry(char *Entry);
 
 /* Instructions.c */
 char **ExtractInstructions(FILE *Installer, FetchStruct *Fetched);
+
+/* Error.c */
+void Error(char *String, char *Additional, uint8_t Flags);
 
 /* CurlWrappers.c */
 void SetupHandles();
