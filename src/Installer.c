@@ -2,8 +2,8 @@
 #include <errno.h>
 
 /* Functions found in Packages.c */
-void DownloadPackages(FetchStruct *Fetched, VersionData *Client);
-void InstallPackages(FetchStruct *Fetched, VersionData *Client);
+int8_t DownloadPackages(FetchStruct *Fetched, VersionData *Client);
+int8_t InstallPackages(FetchStruct *Fetched, VersionData *Client);
 FetchStruct *FetchPackages(VersionData *Client);
 
 /* Wrapper for the three beautiful functions: FetchPackages, DownloadPackages and InstallPackages. 
@@ -37,7 +37,8 @@ void Install(VersionData *Data, uint8_t CheckVersion) {
   /* Last step: install the packages. */
   InstallPackages(Fetched, Data);
   
-  /* Very important: setup the custom WINE prefix for studio. */
+  /* Very important: download proton and setup the custom WINE prefix for studio. */
+  SetupProton();
   SetupPrefix();
 
   /* Write the new version to the version entry of the Pwootie file. 
