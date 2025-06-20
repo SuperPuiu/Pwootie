@@ -4,6 +4,8 @@ FILE *PwootieFile;
 char *PwootieBuffer;
 uint32_t BufferSize = 0;
 
+/* OpenPwootieFile() opens the pwootie file.
+ * @return 1 on success and 0 on failure. */
 uint8_t OpenPwootieFile() {
   /* Build path. */
   uint32_t HomeLength = strlen(getenv("HOME")), InstallDirLength = strlen(INSTALL_DIR);
@@ -34,10 +36,8 @@ uint8_t OpenPwootieFile() {
   BufferSize = ftell(PwootieFile);
   PwootieBuffer = malloc(sizeof(char) * BufferSize);
 
-  if (!PwootieBuffer) {
-    printf("[FATAL]: PwootieBuffer failed to be allocated during OpenPwootieFile.\n");
-    exit(EXIT_FAILURE);
-  }
+  if (!PwootieBuffer)
+    Error("[FATAL]: PwootieBuffer failed to be allocated during OpenPwootieFile.", NULL, ERR_MEMORY);
 
   fseek(PwootieFile, 0, SEEK_SET);
   fread(PwootieBuffer, BufferSize, sizeof(char), PwootieFile);
@@ -61,13 +61,10 @@ int32_t PwootieGetEntry(char *Entry) {
       EntryIndex++;
       SrcIndex++;
 
-      if (EntryIndex == 128) {
-        printf("[FATAL]: EntryIndex reached number 128. Is the PwooteFile corrupt?\n");
-        exit(EXIT_FAILURE);
-      } else if (SrcIndex == BufferSize) {
-        printf("[FATAL]: SrcIndex reached BufferSize. Is the PwootieFile corrupt?\n");
-        exit(EXIT_FAILURE);
-      }
+      if (EntryIndex == 128)
+        Error("[FATAL]: EntryIndex reached number 128. Is the PwooteFile corrupt?", NULL, ERR_STANDARD);
+      else if (SrcIndex == BufferSize)
+        Error("[FATAL]: SrcIndex reached BufferSize. Is the PwootieFile corrupt?", NULL, ERR_STANDARD);
     } while (PwootieBuffer[SrcIndex] != '=');
     
     EntryName[EntryIndex] = '\0';
@@ -103,12 +100,10 @@ char* PwootieReadEntry(char *Entry) {
   while (PwootieBuffer[BufferIndex] != '\n') {
     if (DataIndex == DataSize) {
       DataSize *= 2;
-      Data = realloc(Data, sizeof(char) * DataSize);
+      Data = realloc(Data, sizeof(char) * (DataSize + 1));
 
-      if (!Data) {
-        printf("[FATAL]: Unable to allocate Data during PwootieReadEntry.\n");
-        exit(EXIT_FAILURE);
-      }
+      if (!Data)
+        Error("[FATAL]: Unable to allocate Data during PwootieReadEntry.", NULL, ERR_MEMORY);
     }
 
     Data[DataIndex] = PwootieBuffer[BufferIndex];
@@ -140,10 +135,8 @@ void PwootieWriteEntry(char *Entry, char *Data) {
     PwootieBuffer = realloc(PwootieBuffer, sizeof(char) * (BufferSize + EntrySize + DataSize + 2));
     BufferSize += EntrySize + DataSize + 2;
 
-    if (!PwootieBuffer) {
-      printf("[FATAL]: Unable to realloc the PwootieBuffer durring PwootieWriteEntry.\n");
-      exit(EXIT_FAILURE);
-    }
+    if (!PwootieBuffer)
+      Error("[FATAL]: Unable to realloc the PwootieBuffer durring PwootieWriteEntry.", NULL, ERR_MEMORY);
   }
   
   /* Write the entry. */
