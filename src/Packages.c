@@ -195,7 +195,6 @@ void InstallPackages(FetchStruct *Fetched, VersionData *Client) {
       /* If the entry is a directory (only directories end with /) then we'll build the directory tree. */
       if (Directory) {
         memcpy(InstallDir + HomeLength + InstallDirLength + LengthVersion + InstructionLength + 2, Name, NameLength + 1);
-        printf("%s\n", InstallDir);
 
         BuildDirectoryTree(InstallDir);
         continue;
