@@ -39,3 +39,7 @@ void ReplacePathSlashes(char *Path) {
   /* Hide bugs under the rug because we're good programmers. I don't know why this is required really. */
   Path[PathLen] = '\0';
 }
+
+uint64_t QueryDiskSpace() {
+  return 0;
+}
