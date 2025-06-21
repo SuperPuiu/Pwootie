@@ -3,6 +3,9 @@
 #define PREFIX      "prefix"
 #define WINEPREFIX  "WINEPREFIX"
 #define EXECUTABLE  "RobloxStudioBeta.exe"
+#define PROTON_DIR  "proton"
+#define PROTON_NAME "wine-proton-10.0-1-amd64.tar.xz"
+#define PROTON_LINK "https://github.com/Kron4ek/Wine-Builds/releases/download/proton-10.0-1/wine-proton-10.0-1-amd64.tar.xz"
 
 #include <sys/stat.h>
 #include <Shared.h>
@@ -29,8 +32,43 @@ char *GetPrefixPath() {
   return Location;
 }
 
-void SetupProton() {
+/* SetupProton() is tasked with downloading and extracting proton.
+ * @return -1 on failure and 0 on success. */
+int8_t SetupProton() {
+  /* Unfortunately for me, the file is a tar.xz, which means that I'd either have to 
+   * introduce ANOTHER dependency to Pwootie only for this whole case, or call system().
+   * Second choice sounds like the best choice to me. */
+  uint32_t HomeLength = strlen(getenv("HOME")), InstallDirLength = strlen(INSTALL_DIR);
+  uint32_t ProtonDirLength = strlen(PROTON_DIR), ProtonNameLength = strlen(PROTON_NAME);
 
+  /* 2 for two additional slashes and one additional magic byte. */
+  uint32_t Total = HomeLength + InstallDirLength + ProtonDirLength + ProtonNameLength + 3;
+
+  char *Path = malloc(Total * sizeof(char));
+  FILE *TarFile;
+
+  memcpy(Path, getenv("HOME"), HomeLength);
+  memcpy(Path + HomeLength + 1, INSTALL_DIR, InstallDirLength);
+  Path[HomeLength] = Path[HomeLength + InstallDirLength + 1] = '/';
+  Path[HomeLength + InstallDirLength + 2] = '\0';
+
+  /* First create the directory. */
+  if (mkdir(Path, 0755) && errno != EEXIST) {
+    Error("[ERROR]: Failed to create the proton installation folder.", strerror(errno), ERR_STANDARD | ERR_NOEXIT);
+    return -1;
+  }
+  
+  memcpy(Path + HomeLength + InstallDirLength + 2, PROTON_NAME, ProtonNameLength);
+  Path[HomeLength + InstallDirLength + ProtonNameLength + 2] = '\0';
+  
+  TarFile = fopen(Path, "w");
+  
+  if (!TarFile) {
+    Error("[ERROR]: Failed to open TarFile which is required to download proton.", strerror(errno), ERR_STANDARD | ERR_NOEXIT);
+    return -1;
+  }
+
+  return 0;
 }
 
 /* SetupPrefix() is tasked with setting up the prefix.
