@@ -39,7 +39,7 @@ int8_t Install(VersionData *Data, uint8_t CheckVersion) {
   FetchStruct *Fetched;
   char *Version;
 
-  if (CheckVersion == 1 && Flag) {
+  if (CheckVersion == 1 && Flag == 0) {
     Version = PwootieReadEntry("version");
 
     if (Version) {
