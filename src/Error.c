@@ -45,6 +45,9 @@ void Error(char *String, char *Additional, uint8_t Flags) {
     fclose(Debug);
   }
   
+  /* Clear errno. */
+  errno = 0;
+
   free(Path);
 out:
   printf(Additional != NULL ? EXTENDED_FORMAT : STANDARD_FORMAT, Flags & ERR_MEMORY ? "?" : TimeBuffer, String, Additional != NULL ? Additional : "");
