@@ -12,6 +12,8 @@
 #include <errno.h>
 #include <pthread.h>
 
+#include <unistd.h>
+
 pthread_t RunThread;
 
 char *GetPrefixPath() {
@@ -36,39 +38,75 @@ char *GetPrefixPath() {
  * @return -1 on failure and 0 on success. */
 int8_t SetupProton() {
   /* Unfortunately for me, the file is a tar.xz, which means that I'd either have to 
-   * introduce ANOTHER dependency to Pwootie only for this whole case, or call system().
+   * introduce ANOTHER dependency to Pwootie only for this whole case, or call execv().
    * Second choice sounds like the best choice to me. */
   uint32_t HomeLength = strlen(getenv("HOME")), InstallDirLength = strlen(INSTALL_DIR);
   uint32_t ProtonDirLength = strlen(PROTON_DIR), ProtonNameLength = strlen(PROTON_NAME);
+  
+  CURLcode Response;
 
-  /* 2 for two additional slashes and one additional magic byte. */
-  uint32_t Total = HomeLength + InstallDirLength + ProtonDirLength + ProtonNameLength + 3;
+  /* 3 for two additional slashes and one additional magic byte. */
+  uint32_t Total = HomeLength + InstallDirLength + ProtonDirLength + ProtonNameLength + 4;
 
-  char *Path = malloc(Total * sizeof(char));
+  char *Path = malloc(Total * sizeof(char)), *PathCopy = malloc(Total * sizeof(char));
+  char *Command = malloc(Total * 2 + 3 + 4);
   FILE *TarFile;
 
   memcpy(Path, getenv("HOME"), HomeLength);
   memcpy(Path + HomeLength + 1, INSTALL_DIR, InstallDirLength);
-  Path[HomeLength] = Path[HomeLength + InstallDirLength + 1] = '/';
-  Path[HomeLength + InstallDirLength + 2] = '\0';
+  memcpy(Path + HomeLength + InstallDirLength + 2, PROTON_DIR, ProtonDirLength);
+  Path[HomeLength] = Path[HomeLength + InstallDirLength + 1] = Path[HomeLength + InstallDirLength + ProtonDirLength + 2] = '/';
+  Path[HomeLength + InstallDirLength + ProtonDirLength + 3] = '\0';
 
   /* First create the directory. */
   if (mkdir(Path, 0755) && errno != EEXIST) {
     Error("[ERROR]: Failed to create the proton installation folder.", strerror(errno), ERR_STANDARD | ERR_NOEXIT);
-    return -1;
+    goto error;
   }
   
-  memcpy(Path + HomeLength + InstallDirLength + 2, PROTON_NAME, ProtonNameLength);
-  Path[HomeLength + InstallDirLength + ProtonNameLength + 2] = '\0';
+  memcpy(PathCopy, Path, Total);
+
+  memcpy(Path + HomeLength + InstallDirLength + ProtonDirLength + 3, PROTON_NAME, ProtonNameLength);
+  Path[HomeLength + InstallDirLength + ProtonNameLength + ProtonDirLength + 3] = '\0';
   
+  printf("%s | %s\n", Path, PathCopy);
+
+  /* Open file and download it. */
   TarFile = fopen(Path, "w");
   
   if (!TarFile) {
     Error("[ERROR]: Failed to open TarFile which is required to download proton.", strerror(errno), ERR_STANDARD | ERR_NOEXIT);
-    return -1;
+    goto error;
   }
 
+  Response = CurlDownload(TarFile, PROTON_LINK);
+
+  if (Response != CURLE_OK) {
+    Error("[ERROR]: Failed to download the tar file.", (char*)curl_easy_strerror(Response), ERR_STANDARD | ERR_NOEXIT);
+    goto error;
+  }
+  
+  fclose(TarFile);
+
+  /* im not going to memcpy this. */
+  sprintf(Command, "tar -xvf %s -C %s", Path, PathCopy);
+  
+  printf("\"%s\"\n", Command);
+
+  system(Command);
+  
+  /* Cleanup. */
+  remove(Path);
+
+  free(Command);
+  free(Path);
+  free(PathCopy);
   return 0;
+
+error:
+  free(Path);
+  free(PathCopy);
+  return -1;
 }
 
 /* SetupPrefix() is tasked with setting up the prefix.
@@ -80,8 +118,7 @@ int8_t SetupPrefix() {
   
   if (mkdir(Location, 0755) && errno != EEXIST) {
     Error("[FATAL]: Unable to create %s during SetupPrefix call.", Location, ERR_STANDARD | ERR_NOEXIT);
-    free(Location);
-    return -1;
+    goto error;
   }
 
   /* https://www.man7.org/linux/man-pages/man3/setenv.3.html */
@@ -91,15 +128,13 @@ int8_t SetupPrefix() {
   Status = system("winetricks d3dx11_43");
   if (Status == -1) {
     Error("[FATAL]: winetricks failed to install d3dx11_43. Please try to manually install the component.", NULL, ERR_STANDARD | ERR_NOEXIT);
-    free(Location);
-    return -1;
+    goto error;
   }
   
   Status = system("winetricks dxvk");
   if (Status == -1) {
     Error("[FATAL]: winetricks failed to install dxvk. Please try to manually install the component.", NULL, ERR_STANDARD | ERR_NOEXIT);
-    free(Location);
-    return -1;
+    goto error;
   }
   
   /* Studio works only with DPI 98 for whatever reason. 
@@ -107,12 +142,15 @@ int8_t SetupPrefix() {
   Status = system("wine reg add \"HKEY_CURRENT_USER\\Control Panel\\Desktop\" /v LogPixels /t REG_DWORD /d 0x62 /f");
   if (Status == -1) {
     Error("[FATAL]: Failed to modify prefix registry. Please try to manually change dpi to 98.\n", NULL, ERR_STANDARD | ERR_NOEXIT);
-    free(Location);
-    return -1;
+    goto error;
   }
 
   free(Location);
   return 0;
+
+error:
+  free(Location);
+  return -1;
 }
 
 void *SystemThread(void *Command) {
