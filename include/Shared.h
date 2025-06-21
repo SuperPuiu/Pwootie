@@ -52,11 +52,12 @@ int8_t GetVersionData(VersionData *Data);
 int8_t GetCDNVersion(MemoryStruct *VersionStruct);
 
 /* Installer.c */
-void Install(VersionData *Data, uint8_t CheckVersion);
+int8_t Install(VersionData *Data, uint8_t CheckVersion);
 
 /* Filesystem.c */
 void ReplacePathSlashes(char *Path);
 void BuildDirectoryTree(char *Path);
+uint64_t QueryDiskSpace();
 
 /* Wine.c */
 int8_t SetupPrefix();
@@ -65,8 +66,8 @@ void Run(char *Argument, char *Version);
 
 /* Pwootie.c */
 void PwootieExit();
-uint8_t OpenPwootieFile();
 void PwootieWriteEntry(char *Entry, char *Data);
+int8_t OpenPwootieFile();
 char *PwootieReadEntry(char *Entry);
 
 /* Instructions.c */
