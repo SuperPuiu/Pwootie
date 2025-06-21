@@ -4,7 +4,7 @@ SRCS = $(wildcard src/*.c)
 
 all:
 	mkdir -p bin
-	gcc $(CFLAGS) $(LIBS) $(SRCS) -fsanitize=address -g -o bin/PwootieTest -I include/
+	gcc $(CFLAGS) $(LIBS) $(SRCS) -fsanitize=address -fsanitize=leak -g -o bin/PwootieTest -I include/
 
 release:
 	mkdir -p bin
