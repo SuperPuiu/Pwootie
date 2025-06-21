@@ -11,17 +11,17 @@ int main(int argc, char **argv) {
   if (argc > 1) {
     if (strcmp(argv[1], "reinstall") == 0) {
       Install(&Data, 0);
+      goto exit;
     }
+
+    /* The second argument can be the token we need to log into studio. */
+    Run(argv[1], Data.ClientVersionUpload);
   } else {
-
+    Install(&Data, 1);
+    Run(NULL, Data.ClientVersionUpload);
   }
-  
-  Install(&Data, 1);
-  printf("%s %s %s\n", Data.Version, Data.ClientVersionUpload, Data.BootstrapperVersion);
 
-  /* The second argument can be the token we need to log into studio. */
-  Run(argc > 1 ? argv[1] : NULL, Data.ClientVersionUpload);
-
+exit:
   /* Cleanup */
   free(Data.Version);
   free(Data.ClientVersionUpload);
@@ -29,6 +29,5 @@ int main(int argc, char **argv) {
 
   curl_global_cleanup();
   PwootieExit();
-
   return 0;
 }
