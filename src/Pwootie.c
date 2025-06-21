@@ -1,12 +1,16 @@
 #include <Shared.h>
 
-FILE *PwootieFile;
-char *PwootieBuffer;
+FILE *PwootieFile = NULL;
+char *PwootieBuffer = NULL;
 uint32_t BufferSize = 0;
 
 /* OpenPwootieFile() opens the pwootie file.
  * @return 1 on success and 0 on failure. */
-uint8_t OpenPwootieFile() {
+int8_t OpenPwootieFile() {
+  /* Check if the file is already open. */
+  if (PwootieFile)
+    return -1;
+
   /* Build path. */
   uint32_t HomeLength = strlen(getenv("HOME")), InstallDirLength = strlen(INSTALL_DIR);
   uint32_t FileLength = strlen(PWOOTIE_DATA);
@@ -27,7 +31,7 @@ uint8_t OpenPwootieFile() {
 
     /* Maybe creation failed. */
     if (!PwootieFile)
-      return 0;
+      return -1;
   }
   
   /* Allocate the PwootieBuffer. */
@@ -45,7 +49,7 @@ uint8_t OpenPwootieFile() {
   /* Cleanup. */
   free(Path);
 
-  return 1;
+  return 0;
 }
 
 /* PwootieGetEntry()'s whole purpose is to get the start of the entry within the buffer.
