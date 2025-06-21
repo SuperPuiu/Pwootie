@@ -61,7 +61,7 @@ uint64_t QueryDiskSpace();
 
 /* Wine.c */
 int8_t SetupPrefix();
-void SetupProton();
+int8_t SetupProton();
 void Run(char *Argument, char *Version);
 
 /* Pwootie.c */
