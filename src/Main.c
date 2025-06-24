@@ -1,6 +1,7 @@
 #include <Shared.h>
 
 int main(int argc, char **argv) {
+  OpenPwootieFile();
   curl_global_init(CURL_GLOBAL_ALL);
 
   VersionData Data;
@@ -11,6 +12,9 @@ int main(int argc, char **argv) {
   if (argc > 1) {
     if (strcmp(argv[1], "reinstall") == 0) {
       Install(&Data, 0);
+      goto exit;
+    } else if (strcmp(argv[1], "proton")) {
+      SetupProton();
       goto exit;
     }
 
