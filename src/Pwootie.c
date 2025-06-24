@@ -1,11 +1,12 @@
 #include <Shared.h>
+#include <errno.h>
 
 FILE *PwootieFile = NULL;
 char *PwootieBuffer = NULL;
 uint32_t BufferSize = 0;
 
 /* OpenPwootieFile() opens the pwootie file.
- * @return 1 on success and 0 on failure. */
+ * @return 0 on success and -1 on failure. */
 int8_t OpenPwootieFile() {
   /* Check if the file is already open. */
   if (PwootieFile)
@@ -30,8 +31,11 @@ int8_t OpenPwootieFile() {
     PwootieFile = fopen(Path, "w+");
 
     /* Maybe creation failed. */
-    if (!PwootieFile)
+    if (!PwootieFile) {
+      Error("Unable to create PwootieFile.", strerror(errno), ERR_STANDARD | ERR_NOEXIT);
+      free(Path);
       return -1;
+    }
   }
   
   /* Allocate the PwootieBuffer. */
@@ -122,6 +126,9 @@ char* PwootieReadEntry(char *Entry) {
 
 /* PwootieExit() writes the file and closes the file. This is called at the end of the program. */
 void PwootieExit() {
+  if (!PwootieFile)
+    Error("[FATAL]: PwootieFile doesn't exist. Unable to exit properly.", NULL, ERR_STANDARD);
+
   fseek(PwootieFile, 0, SEEK_SET);
   fwrite(PwootieBuffer, BufferSize, sizeof(char), PwootieFile);
   free(PwootieBuffer);
@@ -140,7 +147,14 @@ void PwootieWriteEntry(char *Entry, char *Data) {
     BufferSize += EntrySize + DataSize + 2;
 
     if (!PwootieBuffer)
-      Error("[FATAL]: Unable to realloc the PwootieBuffer durring PwootieWriteEntry.", NULL, ERR_MEMORY);
+      Error("[FATAL]: Unable to realloc the PwootieBuffer during PwootieWriteEntry.", NULL, ERR_MEMORY);
+  } else if (BufferSize < BufferSize + EntrySize + DataSize + 2) {
+    uint16_t Extra = BufferSize - (EntrySize + DataSize + 2);
+    PwootieBuffer = realloc(PwootieBuffer, sizeof(char) * (BufferSize + Extra));
+    BufferSize += Extra;
+
+    if (!PwootieBuffer)
+      Error("[FATAL]: Unable to realloc the PwootieBuffer during PwootieWriteEntry.", NULL, ERR_MEMORY);
   }
   
   /* Write the entry. */
