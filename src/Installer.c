@@ -33,13 +33,12 @@ void DeleteVersion(char *Version) {
 int8_t Install(VersionData *Data, uint8_t CheckVersion) {
   /* Before starting, let's check if we already have the right version installed.
    * This process may be skipped by setting CheckVersion flag to 0.*/
-  int8_t Status;
-  uint8_t Flag = OpenPwootieFile();
+  int8_t Status = 0;
 
-  FetchStruct *Fetched;
-  char *Version;
+  FetchStruct *Fetched = NULL;
+  char *Version = NULL;
 
-  if (CheckVersion == 1 && Flag == 0) {
+  if (CheckVersion == 1 && PwootieFile) {
     Version = PwootieReadEntry("version");
 
     if (Version) {
@@ -55,39 +54,53 @@ int8_t Install(VersionData *Data, uint8_t CheckVersion) {
    * FetchStruct also contains some additional information helpful to other functions. */
   Fetched = FetchPackages(Data);
   if (!Fetched)
-    return -1;
+    goto error;
   
   /* Second step: download the packages using the data we got above. */
   Status = DownloadPackages(Fetched, Data);
   if (Status == -1)
-    return -1;
+    goto error;
 
   /* Last step: install the packages. */
   Status = InstallPackages(Fetched, Data);
   if (Status == -1)
-    return -1;
+    goto error;
+  
+  /* Write the new version to the version entry of the Pwootie file. 
+   * If the flag earlier was set to 0 then it means we have to create the Pwootie file now.*/
+  if (!PwootieFile)
+    OpenPwootieFile();
 
   /* Very important: download proton and setup the custom WINE prefix for studio. */
   SetupProton();
   Status = SetupPrefix();
   if (Status == -1)
-    return -1;
-
-  /* Write the new version to the version entry of the Pwootie file. 
-   * If the flag earlier was set to 0 then it means we have to create the Pwootie file now.*/
-  if (!Flag)
-    OpenPwootieFile();
+    goto error;
 
   PwootieWriteEntry("version", Data->ClientVersionUpload);
   
   /* Delete the old version, if it exists. */
-  if (!Version)
+  if (Version) {
     DeleteVersion(Version);
+    free(Version);
+  }
 
   /* Clean all the variables and close the PwootieFile. */
   free(Fetched->PackageList);
   free(Fetched);
-  free(Version);
 
   return 0;
+
+error:
+  if (Fetched) {
+    free(Fetched->PackageList);
+    free(Fetched);
+  }
+  
+  if (Version)
+    free(Version);
+  
+  Error("[ERROR]: An error was encountered while running Install().", NULL, ERR_STANDARD | ERR_NOEXIT);
+
+  return -1;
 }
