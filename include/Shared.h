@@ -65,6 +65,8 @@ int8_t SetupProton();
 void Run(char *Argument, char *Version);
 
 /* Pwootie.c */
+extern FILE* PwootieFile;
+
 void PwootieExit();
 void PwootieWriteEntry(char *Entry, char *Data);
 int8_t OpenPwootieFile();
