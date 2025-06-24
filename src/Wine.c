@@ -38,15 +38,16 @@ char *GetPrefixPath() {
  * @return -1 on failure and 0 on success. */
 int8_t SetupProton() {
   /* Unfortunately for me, the file is a tar.xz, which means that I'd either have to 
-   * introduce ANOTHER dependency to Pwootie only for this whole case, or call execv().
+   * introduce ANOTHER dependency to Pwootie only for this whole case, or call system().
    * Second choice sounds like the best choice to me. */
   uint32_t HomeLength = strlen(getenv("HOME")), InstallDirLength = strlen(INSTALL_DIR);
   uint32_t ProtonDirLength = strlen(PROTON_DIR), ProtonNameLength = strlen(PROTON_NAME);
   
   CURLcode Response;
 
-  /* 3 for two additional slashes and one additional magic byte. */
-  uint32_t Total = HomeLength + InstallDirLength + ProtonDirLength + ProtonNameLength + 4;
+  /* 3 for two additional slashes and one additional magic byte.
+   * The extra 256 are for building the path to the wine_binary. */
+  uint32_t Total = HomeLength + InstallDirLength + ProtonDirLength + ProtonNameLength + 4 + 256;
 
   char *Path = malloc(Total * sizeof(char)), *PathCopy = malloc(Total * sizeof(char));
   char *Command = malloc(Total * 2 + 3 + 4);
@@ -68,8 +69,6 @@ int8_t SetupProton() {
 
   memcpy(Path + HomeLength + InstallDirLength + ProtonDirLength + 3, PROTON_NAME, ProtonNameLength);
   Path[HomeLength + InstallDirLength + ProtonNameLength + ProtonDirLength + 3] = '\0';
-  
-  printf("%s | %s\n", Path, PathCopy);
 
   /* Open file and download it. */
   TarFile = fopen(Path, "w");
@@ -80,6 +79,7 @@ int8_t SetupProton() {
   }
 
   Response = CurlDownload(TarFile, PROTON_LINK);
+  // Response = CURLE_OK;
 
   if (Response != CURLE_OK) {
     Error("[ERROR]: Failed to download the tar file.", (char*)curl_easy_strerror(Response), ERR_STANDARD | ERR_NOEXIT);
@@ -90,14 +90,20 @@ int8_t SetupProton() {
 
   /* im not going to memcpy this. */
   sprintf(Command, "tar -xvf %s -C %s", Path, PathCopy);
-  
-  printf("\"%s\"\n", Command);
-
   system(Command);
   
-  /* Cleanup. */
+  /* Remove zip file. */
   remove(Path);
 
+  /* Write wine_binary entry. The -6 is used to place the pointer at the start of the extension, after a newly added slash. */
+  memcpy(Path + HomeLength + InstallDirLength + ProtonDirLength + ProtonNameLength + 3 - 6, "bin", 3);
+  memcpy(Path + HomeLength + InstallDirLength + ProtonDirLength + ProtonNameLength + 1, "wine64", 6);
+  Path[HomeLength + InstallDirLength + ProtonDirLength + ProtonNameLength + 3 - 7] = Path[HomeLength + InstallDirLength + ProtonDirLength + ProtonNameLength] = '/';
+  Path[HomeLength + InstallDirLength + ProtonDirLength + ProtonNameLength + 7] = '\0';
+
+  PwootieWriteEntry("wine_binary", Path);
+  
+  /* Cleanup. */
   free(Command);
   free(Path);
   free(PathCopy);
@@ -106,6 +112,7 @@ int8_t SetupProton() {
 error:
   free(Path);
   free(PathCopy);
+  free(Command);
   return -1;
 }
 
@@ -155,7 +162,7 @@ error:
 
 void *SystemThread(void *Command) {
   char *StrCommand = Command;
-
+  
   system(StrCommand);
 
   /* If system() ended then I'm pretty sure we can safely cancel the thread. */
@@ -171,25 +178,25 @@ void Run(char *Argument, char *Version) {
     Argument = "";
   
   /* Yeah well I can't put it next to the other char arrays. */
-  char *WINE_EXEC = PwootieReadEntry("wine_path");
+  char *WINE_EXEC = PwootieReadEntry("wine_binary");
   uint8_t FreeFlag = 1;
 
-  /* If the wine_path entry doesn't exist, just create a dummy one and hope wine exists. */
+  /* If the wine_binary entry doesn't exist, just create a dummy one and hope wine exists. */
   if (!WINE_EXEC) {
-    PwootieWriteEntry("wine_path", "wine");
+    PwootieWriteEntry("wine_binary", "wine");
     FreeFlag = 0;
     WINE_EXEC = "wine";
   }
-
+  
   uint32_t WineLen = strlen(WINE_EXEC), ArgLen = strlen(Argument);
   uint32_t VersionLen = strlen(Version), HomeLength = strlen(getenv("HOME"));
   uint32_t InstallLen = strlen(INSTALL_DIR), ExecutableLen = strlen(EXECUTABLE);
   uint32_t ExecPathLen = HomeLength + InstallLen + VersionLen + ExecutableLen + 4;
   
-  /* Command needs extra space for the quotes required by the arguments. */
+  /* Command needs extra space for the quotes required by the arguments. We may also need an additional dot. */
   char *Location = GetPrefixPath();
-  char *Command = malloc((WineLen + ArgLen + ExecPathLen + 2 + 2) * sizeof(char));
-  char *Executable = malloc((ExecPathLen) * sizeof(char));
+  char *Command = malloc((WineLen + ArgLen + ExecPathLen + 2 + 3) * sizeof(char));
+  char *Executable = malloc(ExecPathLen * sizeof(char));
   
   if (!Command)
     Error("[FATAL]: Unable to allocate Command buffer during Run call.", NULL, ERR_MEMORY);
@@ -212,7 +219,7 @@ void Run(char *Argument, char *Version) {
   /* Apparently system() can have some security vulnerabilities? eh? */
   setenv(WINEPREFIX, Location, 1);
   pthread_create(&RunThread, NULL, SystemThread, (void*)Command);
-  
+
   free(Executable);
   free(Location);
 
