@@ -40,11 +40,11 @@ int8_t InstallPackages(FetchStruct *Fetched, VersionData *Client) {
   char *InstallDir      = malloc((InstallDirTotal) * sizeof(char));
 
   if (!FullURL)
-    Error("[FATAL]: Unable to allocate FullURL during InstallPackages call.", NULL, ERR_MEMORY);
+    Error("[FATAL]: Unable to allocate FullURL during InstallPackages call.", ERR_MEMORY);
   else if (!Official) 
-    Error("[FATAL]: Unable to allocate Official during InstallPackages call.", NULL, ERR_MEMORY);
+    Error("[FATAL]: Unable to allocate Official during InstallPackages call.", ERR_MEMORY);
   else if (!InstallDir)
-    Error("[FATAL]: Unable to allocate InstallDir during InstallPackages call.", NULL, ERR_MEMORY);
+    Error("[FATAL]: Unable to allocate InstallDir during InstallPackages call.", ERR_MEMORY);
   
   /* Construct URL. */
   memcpy(FullURL, CDN_URL, LengthURL);
@@ -69,14 +69,16 @@ int8_t InstallPackages(FetchStruct *Fetched, VersionData *Client) {
   Installer = fopen(Official, "w+");
 
   if (!Installer) {
-    Error("[ERROR]: Unable to create RobloxStudioInstaller file during InstallPackages call.", Official, ERR_STANDARD | ERR_NOEXIT);
+    Error("[ERROR]: Unable to create RobloxStudioInstaller file during InstallPackages call.", ERR_STANDARD | ERR_NOEXIT);
+    Error(Official, ERR_STANDARD | ERR_NOEXIT);
     return -1;
   }
 
   Response = CurlDownload(Installer, FullURL);
 
   if (Response != CURLE_OK) {
-    Error("[ERROR]: Failed to download RobloxStudioInstaller.exe.\n", (char*)curl_easy_strerror(Response), ERR_STANDARD | ERR_NOEXIT);
+    Error("[ERROR]: Failed to download RobloxStudioInstaller.exe.\n", ERR_STANDARD | ERR_NOEXIT);
+    Error((char*)curl_easy_strerror(Response), ERR_STANDARD | ERR_NOEXIT);
     return -1;
   }
 
@@ -114,7 +116,7 @@ int8_t InstallPackages(FetchStruct *Fetched, VersionData *Client) {
   
   FILE *AppSettings = fopen(InstallDir, "w");
   if (!AppSettings) {
-    Error("[ERROR]: Failed to create AppSettings durign InstallPackages call.", strerror(errno), ERR_STANDARD | ERR_NOEXIT);
+    Error("[ERROR]: Failed to create AppSettings durign InstallPackages call.", ERR_STANDARD | ERR_NOEXIT);
     return -1;
   }
 
@@ -137,7 +139,8 @@ int8_t InstallPackages(FetchStruct *Fetched, VersionData *Client) {
       char Buffer[5];
       sprintf(Buffer, "%i", i);
 
-      Error("[ERROR]: Failed to allocate ZipStat for one of the fetched packages during InstallPackages call.", Buffer, ERR_STANDARD | ERR_NOEXIT);
+      Error("[ERROR]: Failed to allocate ZipStat for one of the fetched packages during InstallPackages call.", ERR_STANDARD | ERR_NOEXIT);
+      Error(Buffer, ERR_STANDARD | ERR_NOEXIT);
       return -1;
     }
     
@@ -150,8 +153,9 @@ int8_t InstallPackages(FetchStruct *Fetched, VersionData *Client) {
 
     if (!ZipPointer) {
       zip_error_init_with_code(&ZipError, ErrorCode);
-      Error("[FATAL]: Unable to open one of the zip files:", NULL, ERR_STANDARD | ERR_NOEXIT);
-      Error(Official, (char*)zip_error_strerror(&ZipError), ERR_STANDARD | ERR_NOEXIT);
+      Error("[FATAL]: Unable to open one of the zip files.", ERR_STANDARD | ERR_NOEXIT);
+      Error(Official, ERR_STANDARD | ERR_NOEXIT);
+      Error((char*)zip_error_strerror(&ZipError), ERR_STANDARD | ERR_NOEXIT);
 
       return -1;
     }
@@ -169,8 +173,9 @@ int8_t InstallPackages(FetchStruct *Fetched, VersionData *Client) {
         char Buffer[32];
         sprintf(Buffer, "%li", Entry);
 
-        Error("[ERROR]: Error occured while getting one of the entries from a zip:", NULL, ERR_STANDARD | ERR_NOEXIT);
-        Error(Buffer, Official, ERR_STANDARD | ERR_NOEXIT);
+        Error("[ERROR]: Error occured while getting one of the entries from a zip.", ERR_STANDARD | ERR_NOEXIT);
+        Error(Buffer, ERR_STANDARD | ERR_NOEXIT);
+        Error(Official, ERR_STANDARD | ERR_NOEXIT);
         return -1;
       }
       
@@ -192,15 +197,15 @@ int8_t InstallPackages(FetchStruct *Fetched, VersionData *Client) {
       Memory = calloc(ZipStat->size, sizeof(char));
       
       if (!Memory)
-        Error("[FATAL]: Unable to allocate Memory variable during InstallPackages call.", (char*)Name, ERR_MEMORY);
+        Error("[FATAL]: Unable to allocate Memory variable during InstallPackages call.", ERR_MEMORY);
       
       /* Include string terminator. */
       memcpy(InstallDir + HomeLength + InstallDirLength + InstructionLength + LengthVersion + 3, Name, NameLength + 1);
       NewFile = fopen(InstallDir, "wb");
       
       if (!NewFile) {
-        Error("[ERROR]: Unable to open a file to write contents:", NULL, ERR_STANDARD | ERR_NOEXIT);
-        Error(InstallDir, strerror(errno), ERR_STANDARD | ERR_NOEXIT);
+        Error("[ERROR]: Unable to open a file to write contents.", ERR_STANDARD | ERR_NOEXIT);
+        Error(InstallDir, ERR_STANDARD | ERR_NOEXIT);
         return -1;
       }
 
@@ -248,9 +253,9 @@ int8_t DownloadPackages(FetchStruct *Fetched, VersionData *Client) {
   char *ZipFilePath = malloc((RootPartLength + Fetched->LongestName + 2) * sizeof(char));
 
   if (!FullURL)
-    Error("[FATAL]: Failed to allocate memory for FullURL during DownloadPackages call.", NULL, ERR_MEMORY);
+    Error("[FATAL]: Failed to allocate memory for FullURL during DownloadPackages call.", ERR_MEMORY);
   else if (!ZipFilePath)
-    Error("[FATAL]: Failed to allocate memory for ZipFilePath during DownloadPackages call.", NULL, ERR_MEMORY);
+    Error("[FATAL]: Failed to allocate memory for ZipFilePath during DownloadPackages call.", ERR_MEMORY);
   
   memcpy(ZipFilePath, TEMP_PWOOTIE_FOLDER, RootPartLength);
   ZipFilePath[RootPartLength] = '/';
@@ -262,7 +267,7 @@ int8_t DownloadPackages(FetchStruct *Fetched, VersionData *Client) {
   /* Create a temp folder for downloads. 
    * The installer function cleans it once installation finishes.*/
   if (mkdir(TEMP_PWOOTIE_FOLDER, 0755) && errno != EEXIST) {
-    Error("[FATAL]: Failed to create new directory within /tmp/.", strerror(errno), ERR_STANDARD | ERR_NOEXIT);
+    Error("[FATAL]: Failed to create new directory within /tmp/.", ERR_STANDARD | ERR_NOEXIT);
     return -1;
   }
 
@@ -287,7 +292,8 @@ int8_t DownloadPackages(FetchStruct *Fetched, VersionData *Client) {
       char      ChecksumBuf[33];
       
       if (!ZipFile) {
-        Error("[FATAL]: Unable to open a zip file.", ZipFilePath, ERR_STANDARD | ERR_NOEXIT);
+        Error("[FATAL]: Unable to open a zip file.", ERR_STANDARD | ERR_NOEXIT);
+        Error(ZipFilePath, ERR_STANDARD | ERR_NOEXIT);
         goto error;
       }
 
@@ -312,7 +318,7 @@ int8_t DownloadPackages(FetchStruct *Fetched, VersionData *Client) {
     if (Downloaded) {
       printf("[INFO]: Downloaded package %i out of %i.\n", Index + 1, Fetched->TotalPackages);
     } else {
-      Error("[ERROR]: Failed to download package. Aborting download.\n", NULL, ERR_STANDARD | ERR_NOEXIT);
+      Error("[ERROR]: Failed to download package. Aborting download.\n", ERR_STANDARD | ERR_NOEXIT);
       goto error;
     }
   }
@@ -339,11 +345,11 @@ FetchStruct* FetchPackages(VersionData *Client) {
   FetchStruct *ReturnStruct = malloc(sizeof(FetchStruct));
 
   if (!FullURL)
-    Error("[FATAL]: Failed to allocate FullURL within GetPackages call.", NULL, ERR_MEMORY);
+    Error("[FATAL]: Failed to allocate FullURL within GetPackages call.", ERR_MEMORY);
   else if (!PackagesData)
-    Error("[FATAL]: Failed to allocate PackagesData within GetPackages call.", NULL, ERR_MEMORY);
+    Error("[FATAL]: Failed to allocate PackagesData within GetPackages call.", ERR_MEMORY);
   else if (!ReturnStruct)
-    Error("[FATAL]: Failed to allocate ReturnStruct within GetPackages call.", NULL, ERR_MEMORY);
+    Error("[FATAL]: Failed to allocate ReturnStruct within GetPackages call.", ERR_MEMORY);
   
   ManifestContent.Memory = malloc(1);
   ManifestContent.Size = 0;
@@ -358,7 +364,8 @@ FetchStruct* FetchPackages(VersionData *Client) {
   CURLcode Response = CurlGet(&ManifestContent, (char*)FullURL);
 
   if (Response != CURLE_OK) {
-    Error("[ERROR]: GetPackages call failed to download the Manifest file.", (char*)curl_easy_strerror(Response), ERR_STANDARD | ERR_NOEXIT);
+    Error("[ERROR]: GetPackages call failed to download the Manifest file.", ERR_STANDARD | ERR_NOEXIT);
+    Error((char*)curl_easy_strerror(Response), ERR_STANDARD | ERR_NOEXIT);
     goto error;
   }
 
@@ -376,7 +383,7 @@ FetchStruct* FetchPackages(VersionData *Client) {
       Package *l_PackagesData = realloc(PackagesData, sizeof(Package) * PackageArraySize);
       
       if (!l_PackagesData) {
-        Error("[ERROR]: Unable to reallocate PackagesData from GetPackages function.", NULL, ERR_STANDARD | ERR_NOEXIT);
+        Error("[ERROR]: Unable to reallocate PackagesData from GetPackages function.", ERR_STANDARD | ERR_NOEXIT);
         goto error;
       }
 

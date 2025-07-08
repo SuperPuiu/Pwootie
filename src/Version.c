@@ -12,10 +12,11 @@ int8_t GetVersionData(VersionData *Data) {
   DecodedStrings = malloc(6 * sizeof(char *));
 
   if (!DecodedStrings)
-    Error("[FATAL]: Unable to allocate DecodedStrings buffer in GetVersionData function.", NULL, ERR_MEMORY);
+    Error("[FATAL]: Unable to allocate DecodedStrings buffer in GetVersionData function.", ERR_MEMORY);
 
   if (Response != CURLE_OK) {
-    Error("[ERROR]: GetVersionData failed downloading the client settings.", (char*)curl_easy_strerror(Response), ERR_STANDARD | ERR_NOEXIT);
+    Error("[ERROR]: GetVersionData failed downloading the client settings.", ERR_STANDARD | ERR_NOEXIT);
+    Error((char*)curl_easy_strerror(Response), ERR_STANDARD | ERR_NOEXIT);
     free(DecodedStrings);
     return -1;
   }
@@ -35,7 +36,7 @@ int8_t GetVersionData(VersionData *Data) {
       String = malloc((SpaceRequired + 1) * sizeof(char));
 
       if (!String) 
-        Error("[FATAL]: Not enough memory to allocate String space in GetVersionData function.", NULL, ERR_MEMORY);
+        Error("[FATAL]: Not enough memory to allocate String space in GetVersionData function.", ERR_MEMORY);
       
       /* Store the found string. It doesn't have to be NULL byte terminated because calloc sets all bits to 0. */
       memcpy(String, Chunk.Memory + i, SpaceRequired);
@@ -69,7 +70,7 @@ int8_t GetCDNVersion(MemoryStruct *VersionStruct) {
   char *FullURL = malloc((LengthURL + LengthVersion + 1) * sizeof(char)); /* One extra byte for null terminator. */
   
   if (!FullURL)
-    Error("[FATAL]: Unable to allocate FullURL in GetVersion function.\n", NULL, ERR_MEMORY);
+    Error("[FATAL]: Unable to allocate FullURL in GetVersion function.\n", ERR_MEMORY);
 
   VersionStruct->Memory = malloc(1);
   VersionStruct->Size = 0;
@@ -81,7 +82,8 @@ int8_t GetCDNVersion(MemoryStruct *VersionStruct) {
   Response = CurlGet(VersionStruct, FullURL);
 
   if (Response != CURLE_OK) { 
-    Error("[ERROR]: GetCDNVersion failed with curl error.\n", (char *)curl_easy_strerror(Response), ERR_STANDARD | ERR_NOEXIT);
+    Error("[ERROR]: GetCDNVersion failed with curl error.\n", ERR_STANDARD | ERR_NOEXIT);
+    Error((char *)curl_easy_strerror(Response), ERR_STANDARD | ERR_NOEXIT);
     free(FullURL);
     return -1; 
   }

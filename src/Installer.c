@@ -14,7 +14,7 @@ void DeleteVersion(char *Version) {
   char *VersionPath = malloc(Total * sizeof(char));
   
   if (!VersionPath)
-    Error("[FATAL]: Unable to allocate VersionPath during DeleteVersion call.", NULL, ERR_MEMORY);
+    Error("[FATAL]: Unable to allocate VersionPath during DeleteVersion call.", ERR_MEMORY);
 
   memcpy(VersionPath, getenv("HOME"), HomeLength);
   memcpy(VersionPath + HomeLength + 1, INSTALL_DIR, InstallDirLength);
@@ -100,7 +100,7 @@ error:
   if (Version)
     free(Version);
   
-  Error("[ERROR]: An error was encountered while running Install().", NULL, ERR_STANDARD | ERR_NOEXIT);
+  Error("[ERROR]: An error was encountered while running Install().", ERR_STANDARD | ERR_NOEXIT);
 
   return -1;
 }

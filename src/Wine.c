@@ -23,7 +23,7 @@ char *GetPrefixPath() {
   char *Location = malloc((HomeLength + InstallDirLength + PrefixLength + 4) * sizeof(char));
   
   if (!Location)
-    Error("[FATAL]: Unable to allocate Location buffer during GetPrefixPath call.", NULL, ERR_MEMORY);
+    Error("[FATAL]: Unable to allocate Location buffer during GetPrefixPath call.", ERR_MEMORY);
 
   memcpy(Location, getenv("HOME"), HomeLength);
   memcpy(Location + HomeLength + 1, INSTALL_DIR, InstallDirLength);
@@ -61,7 +61,7 @@ int8_t SetupProton() {
 
   /* First create the directory. */
   if (mkdir(Path, 0755) && errno != EEXIST) {
-    Error("[ERROR]: Failed to create the proton installation folder.", strerror(errno), ERR_STANDARD | ERR_NOEXIT);
+    Error("[ERROR]: Failed to create the proton installation folder.", ERR_STANDARD | ERR_NOEXIT);
     goto error;
   }
   
@@ -74,7 +74,7 @@ int8_t SetupProton() {
   TarFile = fopen(Path, "w");
   
   if (!TarFile) {
-    Error("[ERROR]: Failed to open TarFile which is required to download proton.", strerror(errno), ERR_STANDARD | ERR_NOEXIT);
+    Error("[ERROR]: Failed to open TarFile which is required to download proton.", ERR_STANDARD | ERR_NOEXIT);
     goto error;
   }
 
@@ -82,7 +82,8 @@ int8_t SetupProton() {
   // Response = CURLE_OK;
 
   if (Response != CURLE_OK) {
-    Error("[ERROR]: Failed to download the tar file.", (char*)curl_easy_strerror(Response), ERR_STANDARD | ERR_NOEXIT);
+    Error("[ERROR]: Failed to download the tar file.", ERR_STANDARD | ERR_NOEXIT);
+    Error((char*)curl_easy_strerror(Response), ERR_STANDARD | ERR_NOEXIT);
     goto error;
   }
   
@@ -124,7 +125,8 @@ int8_t SetupPrefix() {
   char *Location = GetPrefixPath();
   
   if (mkdir(Location, 0755) && errno != EEXIST) {
-    Error("[FATAL]: Unable to create %s during SetupPrefix call.", Location, ERR_STANDARD | ERR_NOEXIT);
+    Error("[FATAL]: Unable to create folder during SetupPrefix call.", ERR_STANDARD | ERR_NOEXIT);
+    Error(Location, ERR_STANDARD | ERR_NOEXIT);
     goto error;
   }
 
@@ -134,13 +136,13 @@ int8_t SetupPrefix() {
   /* Install required dlls for studio to launch. Check status values. */
   Status = system("winetricks d3dx11_43");
   if (Status == -1) {
-    Error("[FATAL]: winetricks failed to install d3dx11_43. Please try to manually install the component.", NULL, ERR_STANDARD | ERR_NOEXIT);
+    Error("[FATAL]: winetricks failed to install d3dx11_43. Please try to manually install the component.", ERR_STANDARD | ERR_NOEXIT);
     goto error;
   }
   
   Status = system("winetricks dxvk");
   if (Status == -1) {
-    Error("[FATAL]: winetricks failed to install dxvk. Please try to manually install the component.", NULL, ERR_STANDARD | ERR_NOEXIT);
+    Error("[FATAL]: winetricks failed to install dxvk. Please try to manually install the component.", ERR_STANDARD | ERR_NOEXIT);
     goto error;
   }
   
@@ -148,7 +150,7 @@ int8_t SetupPrefix() {
    * 0x62 is the hexadecimal value of 98. */
   Status = system("wine reg add \"HKEY_CURRENT_USER\\Control Panel\\Desktop\" /v LogPixels /t REG_DWORD /d 0x62 /f");
   if (Status == -1) {
-    Error("[FATAL]: Failed to modify prefix registry. Please try to manually change dpi to 98.\n", NULL, ERR_STANDARD | ERR_NOEXIT);
+    Error("[FATAL]: Failed to modify prefix registry. Please try to manually change dpi to 98.\n", ERR_STANDARD | ERR_NOEXIT);
     goto error;
   }
 
@@ -199,9 +201,9 @@ void Run(char *Argument, char *Version) {
   char *Executable = malloc(ExecPathLen * sizeof(char));
   
   if (!Command)
-    Error("[FATAL]: Unable to allocate Command buffer during Run call.", NULL, ERR_MEMORY);
+    Error("[FATAL]: Unable to allocate Command buffer during Run call.", ERR_MEMORY);
   else if (!Executable)
-    Error("[FATAL]: Unable to allocate Executable buffer during Run call.", NULL, ERR_MEMORY);
+    Error("[FATAL]: Unable to allocate Executable buffer during Run call.", ERR_MEMORY);
 
   memcpy(Executable, getenv("HOME"), HomeLength);
   memcpy(Executable + HomeLength + 1, INSTALL_DIR, InstallLen);

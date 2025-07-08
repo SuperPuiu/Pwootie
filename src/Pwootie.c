@@ -32,7 +32,7 @@ int8_t OpenPwootieFile() {
 
     /* Maybe creation failed. */
     if (!PwootieFile) {
-      Error("Unable to create PwootieFile.", strerror(errno), ERR_STANDARD | ERR_NOEXIT);
+      Error("Unable to create PwootieFile.", ERR_STANDARD | ERR_NOEXIT);
       free(Path);
       return -1;
     }
@@ -45,7 +45,7 @@ int8_t OpenPwootieFile() {
   PwootieBuffer = malloc(sizeof(char) * BufferSize);
 
   if (!PwootieBuffer)
-    Error("[FATAL]: PwootieBuffer failed to be allocated during OpenPwootieFile.", NULL, ERR_MEMORY);
+    Error("[FATAL]: PwootieBuffer failed to be allocated during OpenPwootieFile.", ERR_MEMORY);
 
   fseek(PwootieFile, 0, SEEK_SET);
   fread(PwootieBuffer, BufferSize, sizeof(char), PwootieFile);
@@ -70,9 +70,9 @@ int32_t PwootieGetEntry(char *Entry) {
       SrcIndex++;
 
       if (EntryIndex == 128)
-        Error("[FATAL]: EntryIndex reached number 128. Is the PwooteFile corrupt?", NULL, ERR_STANDARD);
+        Error("[FATAL]: EntryIndex reached number 128. Is the PwooteFile corrupt?", ERR_STANDARD);
       else if (SrcIndex == BufferSize)
-        Error("[FATAL]: SrcIndex reached BufferSize. Is the PwootieFile corrupt?", NULL, ERR_STANDARD);
+        Error("[FATAL]: SrcIndex reached BufferSize. Is the PwootieFile corrupt?", ERR_STANDARD);
     } while (PwootieBuffer[SrcIndex] != '=');
     
     EntryName[EntryIndex] = '\0';
@@ -111,7 +111,7 @@ char* PwootieReadEntry(char *Entry) {
       Data = realloc(Data, sizeof(char) * (DataSize + 1));
 
       if (!Data)
-        Error("[FATAL]: Unable to allocate Data during PwootieReadEntry.", NULL, ERR_MEMORY);
+        Error("[FATAL]: Unable to allocate Data during PwootieReadEntry.", ERR_MEMORY);
     }
 
     Data[DataIndex] = PwootieBuffer[BufferIndex];
@@ -127,7 +127,7 @@ char* PwootieReadEntry(char *Entry) {
 /* PwootieExit() writes the file and closes the file. This is called at the end of the program. */
 void PwootieExit() {
   if (!PwootieFile)
-    Error("[FATAL]: PwootieFile doesn't exist. Unable to exit properly.", NULL, ERR_STANDARD);
+    Error("[FATAL]: PwootieFile doesn't exist. Unable to exit properly.", ERR_STANDARD);
 
   fseek(PwootieFile, 0, SEEK_SET);
   fwrite(PwootieBuffer, BufferSize, sizeof(char), PwootieFile);
@@ -147,14 +147,14 @@ void PwootieWriteEntry(char *Entry, char *Data) {
     BufferSize += EntrySize + DataSize + 2;
 
     if (!PwootieBuffer)
-      Error("[FATAL]: Unable to realloc the PwootieBuffer during PwootieWriteEntry.", NULL, ERR_MEMORY);
+      Error("[FATAL]: Unable to realloc the PwootieBuffer during PwootieWriteEntry.", ERR_MEMORY);
   } else if (BufferSize < BufferSize + EntrySize + DataSize + 2) {
     uint16_t Extra = BufferSize - (EntrySize + DataSize + 2);
     PwootieBuffer = realloc(PwootieBuffer, sizeof(char) * (BufferSize + Extra));
     BufferSize += Extra;
 
     if (!PwootieBuffer)
-      Error("[FATAL]: Unable to realloc the PwootieBuffer during PwootieWriteEntry.", NULL, ERR_MEMORY);
+      Error("[FATAL]: Unable to realloc the PwootieBuffer during PwootieWriteEntry.", ERR_MEMORY);
   }
   
   /* Write the entry. */
