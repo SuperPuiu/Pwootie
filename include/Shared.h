@@ -83,4 +83,8 @@ void SetupHandles();
 CURLcode    CurlDownload(FILE *File, char *WithURL);
 CURLcode    CurlGet(MemoryStruct *Chunk, char *WithURL);
 
+/* FFlags.c */
+int8_t ApplyFFlag(char *EntryName, char *Data);
+int8_t CopyFFlags();
+
 #endif
