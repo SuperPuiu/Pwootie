@@ -76,7 +76,7 @@ char *PwootieReadEntry(char *Entry);
 char **ExtractInstructions(FILE *Installer, FetchStruct *Fetched);
 
 /* Error.c */
-void Error(char *String, char *Additional, uint8_t Flags);
+void Error(char *String, uint8_t Flags);
 
 /* CurlWrappers.c */
 void SetupHandles();
@@ -85,6 +85,7 @@ CURLcode    CurlGet(MemoryStruct *Chunk, char *WithURL);
 
 /* FFlags.c */
 int8_t ApplyFFlag(char *EntryName, char *Data);
-int8_t CopyFFlags();
+int8_t ReadFFlag(char *EntryName);
+int8_t LoadFFlags(char *Version);
 
 #endif
