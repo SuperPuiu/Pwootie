@@ -36,7 +36,9 @@ char *GetPrefixPath() {
 
 /* SetupProton() is tasked with downloading and extracting proton.
  * @return -1 on failure and 0 on success. */
-int8_t SetupProton() {
+int8_t SetupProton(uint8_t CheckExistence) {
+  printf("[INFO]: Setting up proton.\n");
+
   /* Unfortunately for me, the file is a tar.xz, which means that I'd either have to 
    * introduce ANOTHER dependency to Pwootie only for this whole case, or call system().
    * Second choice sounds like the best choice to me. */
@@ -62,6 +64,9 @@ int8_t SetupProton() {
   /* First create the directory. */
   if (mkdir(Path, 0755) && errno != EEXIST) {
     Error("[ERROR]: Failed to create the proton installation folder.", ERR_STANDARD | ERR_NOEXIT);
+    goto error;
+  } else if (errno == EEXIST && CheckExistence == 1) {
+    printf("[INFO]: Proton was already installed.\n");
     goto error;
   }
   
@@ -108,18 +113,24 @@ int8_t SetupProton() {
   free(Command);
   free(Path);
   free(PathCopy);
+
   return 0;
 
 error:
   free(Path);
   free(PathCopy);
   free(Command);
+
+  if (TarFile)
+    fclose(TarFile);
   return -1;
 }
 
 /* SetupPrefix() is tasked with setting up the prefix.
  * @return 0 on success, otherwise return -1 on failure. */
 int8_t SetupPrefix() {
+  printf("[INFO]: Setting up prefix.\n");
+
   int32_t Status;
   /* Is all this string building needed? */
   char *Location = GetPrefixPath();
