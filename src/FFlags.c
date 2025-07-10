@@ -24,81 +24,136 @@ int8_t ApplyFFlag(char *EntryName, char *Data) {
   return 0;
 }
 
+/* CreateFFlags(char *Version) is used to create a copy of the studio settings found within the prefix folder.
+ * @return 0 on success and -1 on failure. */
 int8_t CreateFFlags(char *Version) {
-  uint32_t HomeLen = strlen(getenv("HOME")), InstallDirLen = strlen(INSTALL_DIR);
-  uint32_t StaticPathLen = strlen(STATIC_PATH);
-  
-  char *FFlagsCopy = malloc(HomeLen + InstallDirLen + StaticPathLen + 3);
-  // char *Destination = malloc();
-  
-  if (!FFlagsCopy)
-    Error("[FATAL]: Unable to allocate Path during CreateFFlags call.\n", ERR_MEMORY);
-  
-  memcpy(FFlagsCopy, getenv("HOME"), HomeLen);
-  memcpy(FFlagsCopy + HomeLen + 1, INSTALL_DIR, InstallDirLen);
-  memcpy(FFlagsCopy + HomeLen + InstallDirLen + 2, STATIC_PATH, StaticPathLen + 1);
-  FFlagsCopy[HomeLen] = FFlagsCopy[HomeLen + InstallDirLen + 1] = '/';
-  
-  unused(Version);
+  FILE *FFlagsFile, *FileDestination;
 
+  char *FFlagsPath = BuildString(5, getenv("HOME"), "/", INSTALL_DIR, "/", STATIC_PATH);
+  char *DestinationPath = BuildString(7, getenv("HOME"), "/", INSTALL_DIR, "/", Version, "/", VERSION_SETTINGS_PATH);
+  char *Buffer = NULL;
+
+  uint32_t DIRECTORY_LEN = strlen(DestinationPath) - 22;
+  uint32_t FileSize;
+
+  /* We must build the directory path first. */
+  char SavedChar = DestinationPath[DIRECTORY_LEN];
+  DestinationPath[DIRECTORY_LEN] = '\0';
+
+  if (BuildDirectoryTree(DestinationPath) != 0) {
+    Error("[ERROR]: BuildDirectoryPath failed during CreateFFlags call.\n", ERR_STANDARD | ERR_NOEXIT);
+    goto error;
+  }
+
+  DestinationPath[DIRECTORY_LEN] = SavedChar;
+
+  FFlagsFile = fopen(FFlagsPath, "r");
+  FileDestination = fopen(DestinationPath, "w");
+
+  if (!FFlagsFile) {
+    Error("[ERROR]: Unable to open FFlagsFile file.", ERR_STANDARD | ERR_NOEXIT);
+    Error(FFlagsPath, ERR_STANDARD | ERR_NOEXIT);
+    goto error;
+  } else if (!FileDestination) {
+    Error("[ERROR]: Unable to open FileDestination file.", ERR_STANDARD | ERR_NOEXIT);
+    Error(DestinationPath, ERR_STANDARD | ERR_NOEXIT);
+    goto error;
+  }
+
+  fseek(FFlagsFile, 0, SEEK_END);
+  FileSize = ftell(FFlagsFile);
+  Buffer = malloc(FileSize * sizeof(char));
+
+  if (!Buffer)
+    Error("[FATAL]: Unable to allocate Buffer during CreateFFlags call.\n", ERR_MEMORY);
+
+  fseek(FFlagsFile, 0, SEEK_SET);
+
+  /* TODO: Error checking. */
+  fread(Buffer, sizeof(char), FileSize, FFlagsFile);
+  fwrite(Buffer, sizeof(char), FileSize, FileDestination);
+
+  free(Buffer);
+  free(FFlagsPath);
+  free(DestinationPath);
+
+  fclose(FFlagsFile);
+  fclose(FileDestination);
   return 0;
+
+error:
+  free(FFlagsPath);
+  free(DestinationPath);
+
+  if (Buffer)
+    free(Buffer);
+
+  if (FFlagsFile)
+    fclose(FFlagsFile);
+  if (FileDestination)
+    fclose(FileDestination);
+
+  return -1;
 }
 
-int8_t ReadFFlag(char *EntryName) {
-  if (EntryName[0] == '{')
+/* ReadFFlag(char *EntryName) is used to read to a buffer the state of a fast flag. 
+ * Not to be confused with OutputFFlags(char *EntryName) which is used for console outputting. 
+ * @return the fast flag state on success and NULL on failure. */
+char *ReadFFlag(char *EntryName) {
+  unused(EntryName);
+  return NULL;
+}
+
+/* OutputFFlags(char *EntryName) is used to output to console fflags which contain the same EntryName substring.
+ * Not to be confused with ReadFFlag() which returns a string on the first substring found.
+ * @return -1 on failure and 0 on success. */
+int8_t OutputFFlags(char *EntryName) {
+  if (isalpha(EntryName[0]) == 0) {
+    printf("[ERROR]: The name must not contain any special characters.\n");
     return -1; /* You know what you did. */
+  }
 
   if (!ClientSettings)
-    Error("[FATAL]: Unable to read fflag.\n", ERR_STANDARD);
-  
+    Error("[FATAL]: Unable to read fflag.", ERR_STANDARD);
+
   char *StrStart = strstr(ClientSettings, EntryName);
-  int32_t Position = 0;
+  uint32_t EntryLen = strlen(EntryName);
 
   if (!StrStart) {
-    printf("Unable to find fast flag %s.\n", EntryName);
+    printf("[ERROR]: Unable to find fast flag %s.", EntryName);
     return -1;
   }
-  
-  /* Skip stuff until we reach what we want. */
-  while (StrStart[Position - 1] != ':') {
-    if (isalpha(StrStart[Position]))
-      printf("%c", StrStart[Position]);
-    Position++;
-  }
-  
-  printf(" : ");
 
-  /* Read the characters until we reach the comma. */
-  while (StrStart[Position] != ',') {
-    printf("%c", StrStart[Position]);
+  do {
+    uint32_t Position = 0;
+    while (StrStart[Position] != ':') {
+      if (StrStart[Position] != '"')
+        printf("%c", StrStart[Position]);
+      Position++;
+    }
     Position++;
-  }
-  
-  printf("\n");
+
+    printf(": ");
+
+    while (StrStart[Position] != ',') {
+      printf("%c", StrStart[Position]);
+      Position++;
+    }
+
+    printf("\n");
+    StrStart = strstr(StrStart + EntryLen, EntryName);
+  } while(StrStart);
 
   return 0;
 }
 
+/* LoadFFlags(char *Version) is used to load the FFlags into memory.
+ * @return -1 on failure and 0 on success. */
 int8_t LoadFFlags(char *Version) {
   struct stat SettingsStat;
-
-  uint32_t VersionLen = strlen(Version), HomeLen = strlen(getenv("HOME"));
-  uint32_t InstallDirLen = strlen(INSTALL_DIR), SettingsPathLen = strlen(VERSION_SETTINGS_PATH);
-
-  char *Path = malloc(VersionLen + HomeLen + InstallDirLen + SettingsPathLen + 4);
-  
-  if (!Path)
-    Error("[FATAL]: Unable to allocate Path during LoadFFlags call.\n", ERR_MEMORY);
-
-  memcpy(Path, getenv("HOME"), HomeLen);
-  memcpy(Path + HomeLen + 1, INSTALL_DIR, InstallDirLen);
-  memcpy(Path + HomeLen + InstallDirLen + 2, Version, VersionLen);
-  memcpy(Path + HomeLen + InstallDirLen + VersionLen + 3, VERSION_SETTINGS_PATH, SettingsPathLen + 1);
-  Path[HomeLen] = Path[HomeLen + InstallDirLen + 1] = Path[HomeLen + InstallDirLen + VersionLen + 2] = '/';
+  char *Path = BuildString(7, getenv("HOME"), "/", INSTALL_DIR, "/", Version, "/", VERSION_SETTINGS_PATH);
 
   FileDescriptor = open(Path, O_RDWR);
-  
-  printf("%s\n", Path);
 
   if (FileDescriptor == -1) {
     Error("[ERROR]: LoadFFlags failed to initialize FileDescriptor.", ERR_STANDARD | ERR_NOEXIT);
@@ -110,7 +165,8 @@ int8_t LoadFFlags(char *Version) {
     Error("[ERROR]: fstat failed during LoadFFlags call.", ERR_STANDARD | ERR_NOEXIT);
     goto error;
   }
-
+  
+  /* TODO: Error handling */
   ClientSettings = mmap(NULL, SettingsStat.st_size, PROT_READ | PROT_WRITE, MAP_SHARED, FileDescriptor, 0);
 
   free(Path);
