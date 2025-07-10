@@ -6,9 +6,12 @@
 #include <time.h>
 
 /* TODO: https://unix.stackexchange.com/questions/104936/where-are-all-the-posibilities-of-storing-a-log-file */
+#define ANSI_COLOR_RED     "\x1b[31m"
+#define ANSI_COLOR_RESET   "\x1b[0m"
+
 #define LOG_FILE          "/.local/state/PwootieLog.log"
 #define STANDARD_FORMAT   "%s: %s\n"
- 
+
 void Error(char *String, uint8_t Flags) {
   int32_t l_Errno = errno;
   time_t Timestamp = time(NULL);
@@ -20,7 +23,7 @@ void Error(char *String, uint8_t Flags) {
   char *Path = malloc(sizeof(char) * (HomeLength + Locationlength + 2));
 
   if (!Path) {
-    printf("[FATAL]: Unable to allocate Path during Error call. (strerror: %s)\n", strerror(errno));
+    printf(ANSI_COLOR_RED "[FATAL]: Unable to allocate Path during Error call. (strerror: %s)\n" ANSI_COLOR_RESET, strerror(errno));
     goto Out;
   }
 
@@ -34,7 +37,7 @@ void Error(char *String, uint8_t Flags) {
     Debug = fopen(Path, "w");
   
   if (!Debug) {
-    printf("[FATAL]: Unable to open the Pwootie log. (strerror: %s)\n", strerror(errno));
+    printf(ANSI_COLOR_RED "[FATAL]: Unable to open the Pwootie log. (strerror: %s)\n" ANSI_COLOR_RESET, strerror(errno));
     goto Out;
   }
 
@@ -44,11 +47,12 @@ void Error(char *String, uint8_t Flags) {
     fprintf(Debug, STANDARD_FORMAT, Time, strerror(l_Errno));
 
 Out:
-  printf(STANDARD_FORMAT, Time, String);
+  printf(ANSI_COLOR_RED STANDARD_FORMAT ANSI_COLOR_RESET, Time, String);
   
   if (l_Errno != 0)
-    printf(STANDARD_FORMAT, Time, strerror(l_Errno));
+    printf(ANSI_COLOR_RED STANDARD_FORMAT ANSI_COLOR_RESET, Time, strerror(l_Errno));
   
+  errno = 0;
   free(Path);
 
   if (~Flags & ERR_NOEXIT || Flags & ERR_MEMORY)
