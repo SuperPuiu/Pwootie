@@ -12,17 +12,7 @@ int8_t OpenPwootieFile() {
   if (PwootieFile)
     return -1;
 
-  /* Build path. */
-  uint32_t HomeLength = strlen(getenv("HOME")), InstallDirLength = strlen(INSTALL_DIR);
-  uint32_t FileLength = strlen(PWOOTIE_DATA);
-
-  char *Path = malloc((HomeLength + FileLength + InstallDirLength + 3) * sizeof(char)); 
-  
-  memcpy(Path, getenv("HOME"), HomeLength);
-  memcpy(Path + HomeLength + 1, INSTALL_DIR, InstallDirLength);
-  memcpy(Path + HomeLength + InstallDirLength + 2, PWOOTIE_DATA, FileLength);
-  Path[HomeLength] = Path[HomeLength + InstallDirLength + 1] = '/';
-  Path[HomeLength + InstallDirLength + FileLength + 2] = '\0';
+  char *Path = BuildString(5, getenv("HOME"), "/", INSTALL_DIR, "/", PWOOTIE_DATA);
 
   /* Try to open the file in r+ mode, if it fails then try creating it. */
   PwootieFile = fopen(Path, "r+");
@@ -90,6 +80,10 @@ int32_t PwootieGetEntry(char *Entry) {
 /* This is the helper function which reads the content of an entry.
  * @return NULL if the entry wasn't added yet.*/
 char* PwootieReadEntry(char *Entry) {
+  /* Is the PwootieFile open? */
+  if (!PwootieFile)
+    return NULL;
+
   char *Data = malloc(1 * sizeof(char));
 
   uint32_t  DataSize = 1, DataIndex = 0, BufferIndex = 0;
@@ -148,7 +142,7 @@ void PwootieWriteEntry(char *Entry, char *Data) {
 
     if (!PwootieBuffer)
       Error("[FATAL]: Unable to realloc the PwootieBuffer during PwootieWriteEntry.", ERR_MEMORY);
-  } else if (BufferSize < BufferSize + EntrySize + DataSize + 2) {
+  } else if (BufferSize < EntrySize + DataSize + 2) {
     uint16_t Extra = BufferSize - (EntrySize + DataSize + 2);
     PwootieBuffer = realloc(PwootieBuffer, sizeof(char) * (BufferSize + Extra));
     BufferSize += Extra;
