@@ -2,9 +2,9 @@
 #include <errno.h>
 
 /* Functions found in Packages.c */
-int8_t DownloadPackages(FetchStruct *Fetched, VersionData *Client);
-int8_t InstallPackages(FetchStruct *Fetched, VersionData *Client);
-FetchStruct *FetchPackages(VersionData *Client);
+int8_t DownloadPackages(FetchStruct *Fetched, char *Version);
+int8_t InstallPackages(FetchStruct *Fetched, char *Version);
+FetchStruct *FetchPackages(char *Version);
 
 void DeleteVersion(char *Version) {
   uint32_t InstallDirLength = strlen(INSTALL_DIR), HomeLength = strlen(getenv("HOME"));
@@ -22,29 +22,33 @@ void DeleteVersion(char *Version) {
   VersionPath[HomeLength] = VersionPath[HomeLength + InstallDirLength + 1] = '/';
   VersionPath[Total - 1] = '\0';
   
-  /* Error checking when? */
-  remove(VersionPath);
+  if (remove(VersionPath) != 0) {
+    Error("[ERROR]: Failed to remove old VersionPath.", ERR_STANDARD | ERR_NOEXIT);
+    Error(VersionPath, ERR_STANDARD | ERR_NOEXIT);
+  }
 
   free(VersionPath);
 }
 
 /* Install() function handles the installation process using the functions found in Packages.c
  * @return -1 on failure and 0 on success. */
-int8_t Install(VersionData *Data, uint8_t CheckVersion) {
+int8_t Install(char *Version, uint8_t CheckVersion) {
+  printf("[INFO]: Installing %s.\n", Version);
+
   /* Before starting, let's check if we already have the right version installed.
    * This process may be skipped by setting CheckVersion flag to 0.*/
   int8_t Status = 0;
 
   FetchStruct *Fetched = NULL;
-  char *Version = NULL;
+  char *LastVersion = NULL;
 
   if (CheckVersion == 1 && PwootieFile) {
-    Version = PwootieReadEntry("version");
+    LastVersion = PwootieReadEntry("version");
 
-    if (Version) {
-      if (strcmp(Version, Data->ClientVersionUpload) == 0) {
+    if (LastVersion) {
+      if (strcmp(LastVersion, Version) == 0) {
         printf("[INFO]: Roblox studio seems to be up-to-date. Aborting installation process.\n");
-        free(Version);
+        free(LastVersion);
         return 0;
       }
     }
@@ -52,17 +56,17 @@ int8_t Install(VersionData *Data, uint8_t CheckVersion) {
 
   /* First step: get a list of packages we have to download, along with their checksum, real size and compressed size. 
    * FetchStruct also contains some additional information helpful to other functions. */
-  Fetched = FetchPackages(Data);
+  Fetched = FetchPackages(Version);
   if (!Fetched)
     goto error;
   
   /* Second step: download the packages using the data we got above. */
-  Status = DownloadPackages(Fetched, Data);
+  Status = DownloadPackages(Fetched, Version);
   if (Status == -1)
     goto error;
 
   /* Last step: install the packages. */
-  Status = InstallPackages(Fetched, Data);
+  Status = InstallPackages(Fetched, Version);
   if (Status == -1)
     goto error;
   
@@ -72,20 +76,20 @@ int8_t Install(VersionData *Data, uint8_t CheckVersion) {
     OpenPwootieFile();
 
   /* Very important: download proton and setup the custom WINE prefix for studio. */
-  SetupProton();
+  SetupProton(1);
   Status = SetupPrefix();
   if (Status == -1)
     goto error;
 
-  PwootieWriteEntry("version", Data->ClientVersionUpload);
+  PwootieWriteEntry("version", Version);
   
   /* Delete the old version, if it exists. */
-  if (Version) {
-    DeleteVersion(Version);
-    free(Version);
+  if (LastVersion) {
+    DeleteVersion(LastVersion);
+    free(LastVersion);
   }
 
-  /* Clean all the variables and close the PwootieFile. */
+  /* Free up the used memory. */
   free(Fetched->PackageList);
   free(Fetched);
 
@@ -97,9 +101,9 @@ error:
     free(Fetched);
   }
   
-  if (Version)
-    free(Version);
-  
+  if (LastVersion)
+    free(LastVersion);
+
   Error("[ERROR]: An error was encountered while running Install().", ERR_STANDARD | ERR_NOEXIT);
 
   return -1;
