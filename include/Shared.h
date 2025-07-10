@@ -52,16 +52,17 @@ int8_t GetVersionData(VersionData *Data);
 int8_t GetCDNVersion(MemoryStruct *VersionStruct);
 
 /* Installer.c */
-int8_t Install(VersionData *Data, uint8_t CheckVersion);
+int8_t Install(char *Version, uint8_t CheckVersion);
 
 /* Filesystem.c */
 void ReplacePathSlashes(char *Path);
-void BuildDirectoryTree(char *Path);
+int8_t BuildDirectoryTree(char *Path);
 uint64_t QueryDiskSpace();
+char *BuildString(uint8_t Elements, ...);
 
 /* Wine.c */
 int8_t SetupPrefix();
-int8_t SetupProton();
+int8_t SetupProton(uint8_t CheckExistence);
 void Run(char *Argument, char *Version);
 
 /* Pwootie.c */
@@ -85,7 +86,9 @@ CURLcode    CurlGet(MemoryStruct *Chunk, char *WithURL);
 
 /* FFlags.c */
 int8_t ApplyFFlag(char *EntryName, char *Data);
-int8_t ReadFFlag(char *EntryName);
+int8_t OutputFFlags(char *EntryName);
 int8_t LoadFFlags(char *Version);
+int8_t CreateFFlags(char *Version);
+char *ReadFFlag(char *EntryName);
 
 #endif
