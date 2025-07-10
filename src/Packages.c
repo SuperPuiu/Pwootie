@@ -24,34 +24,25 @@ void ChecksumToString(uint8_t *Checksum, char *Buffer) {
 }
 
 /* Prototypes are found in Installer.c */
-int8_t InstallPackages(FetchStruct *Fetched, VersionData *Client) {
+int8_t InstallPackages(FetchStruct *Fetched, char *Version) {
   CURLcode  Response;
   FILE      *Installer;
 
-  uint32_t LengthURL = strlen(CDN_URL), LengthVersion = strlen(Client->ClientVersionUpload);
+  uint32_t SettingsLen = strlen(APP_SETTINGS_DATA), LengthVersion = strlen(Version);
   uint32_t InstallerLength = strlen(OFFICIAL_INSTALLER), TempDirLength = strlen(TEMP_PWOOTIE_FOLDER);
   uint32_t InstallDirLength = strlen(INSTALL_DIR), HomeLength = strlen(getenv("HOME"));
   uint32_t InstallDirTotal = HomeLength + InstallDirLength + LengthVersion + 3 + 253;
-  uint32_t AppSettingsLen = strlen(APP_SETTINGS), SettingsLen = strlen(APP_SETTINGS_DATA);
+  uint32_t AppSettingsLen = strlen(APP_SETTINGS);
 
-  /* One extra byte for the null terminator and one extra byte for the dash. InstallDir needs two additonal slashes. */
-  char *FullURL         = malloc((LengthURL + LengthVersion + InstallerLength + 2) * sizeof(char));
+  /* The 'Official' string is built inside of this function only to reuse it later. Same for 'InstallDir'. */
   char *Official        = malloc((InstallerLength + TempDirLength + 64 + 1) * sizeof(char));
   char *InstallDir      = malloc((InstallDirTotal) * sizeof(char));
+  char *FullURL         = BuildString(4, CDN_URL, "-", Version, OFFICIAL_INSTALLER);
 
-  if (!FullURL)
-    Error("[FATAL]: Unable to allocate FullURL during InstallPackages call.", ERR_MEMORY);
-  else if (!Official) 
+  if (!Official) 
     Error("[FATAL]: Unable to allocate Official during InstallPackages call.", ERR_MEMORY);
   else if (!InstallDir)
     Error("[FATAL]: Unable to allocate InstallDir during InstallPackages call.", ERR_MEMORY);
-  
-  /* Construct URL. */
-  memcpy(FullURL, CDN_URL, LengthURL);
-  memcpy(FullURL + LengthURL, Client->ClientVersionUpload, LengthVersion);
-  memcpy(FullURL + LengthURL + LengthVersion + 1, OFFICIAL_INSTALLER, InstallerLength);
-  FullURL[LengthURL + LengthVersion] = '-';
-  FullURL[LengthURL + LengthVersion + InstallerLength + 1] = '\0';
   
   /* Construct official downloaded path. */
   memcpy(Official, TEMP_PWOOTIE_FOLDER, TempDirLength);
@@ -61,7 +52,7 @@ int8_t InstallPackages(FetchStruct *Fetched, VersionData *Client) {
   /* Construct installation directory path. */
   memcpy(InstallDir, getenv("HOME"), HomeLength);
   memcpy(InstallDir + HomeLength + 1, INSTALL_DIR, InstallDirLength);
-  memcpy(InstallDir + HomeLength + InstallDirLength + 2, Client->ClientVersionUpload, LengthVersion);
+  memcpy(InstallDir + HomeLength + InstallDirLength + 2, Version, LengthVersion);
   InstallDir[HomeLength] = InstallDir[HomeLength + InstallDirLength + 1] = InstallDir[HomeLength + InstallDirLength + LengthVersion + 2] = '/';
   InstallDir[HomeLength + InstallDirLength + LengthVersion + 3] = '\0';
 
@@ -245,8 +236,8 @@ int8_t InstallPackages(FetchStruct *Fetched, VersionData *Client) {
   return 0;
 }
 
-int8_t DownloadPackages(FetchStruct *Fetched, VersionData *Client) {
-  uint32_t LengthURL = strlen(CDN_URL), LengthVersion = strlen(Client->ClientVersionUpload), RootPartLength = strlen(TEMP_PWOOTIE_FOLDER);
+int8_t DownloadPackages(FetchStruct *Fetched, char *Version) {
+  uint32_t LengthURL = strlen(CDN_URL), LengthVersion = strlen(Version), RootPartLength = strlen(TEMP_PWOOTIE_FOLDER);
   /* One extra byte for the null terminator and one extra byte for the dash. 
    * Allocate the maximum possible size to avoid reallocating the buffers every single package download. */
   char *FullURL = malloc((LengthURL + LengthVersion + Fetched->LongestName + 2) * sizeof(char));
@@ -261,7 +252,7 @@ int8_t DownloadPackages(FetchStruct *Fetched, VersionData *Client) {
   ZipFilePath[RootPartLength] = '/';
 
   memcpy(FullURL, CDN_URL, LengthURL);
-  memcpy(FullURL + LengthURL, Client->ClientVersionUpload, LengthVersion);
+  memcpy(FullURL + LengthURL, Version, LengthVersion);
   FullURL[LengthURL + LengthVersion] = '-';
 
   /* Create a temp folder for downloads. 
@@ -333,32 +324,23 @@ error:
   return -1;
 }
 
-FetchStruct* FetchPackages(VersionData *Client) {
+FetchStruct* FetchPackages(char *Version) {
   MemoryStruct ManifestContent; 
   
   /* Last time I counted there were 33 packages. Hopefully I didn't count them wrong. */
   uint8_t PackageArraySize = 33, CurrentPackage = 0;
-  uint32_t LengthURL = strlen(CDN_URL), LengthVersion = strlen(Client->ClientVersionUpload), ManifestLength = strlen(PACKAGE_MANIFEST);
-  
-  uint8_t *FullURL = malloc((LengthURL + LengthVersion + ManifestLength + 1) * sizeof(uint8_t)); /* One extra byte for null terminator. */
+
+  char *FullURL = BuildString(3, CDN_URL, Version, PACKAGE_MANIFEST);
   Package *PackagesData = malloc(sizeof(Package) * PackageArraySize);
   FetchStruct *ReturnStruct = malloc(sizeof(FetchStruct));
 
-  if (!FullURL)
-    Error("[FATAL]: Failed to allocate FullURL within GetPackages call.", ERR_MEMORY);
-  else if (!PackagesData)
+  if (!PackagesData)
     Error("[FATAL]: Failed to allocate PackagesData within GetPackages call.", ERR_MEMORY);
   else if (!ReturnStruct)
     Error("[FATAL]: Failed to allocate ReturnStruct within GetPackages call.", ERR_MEMORY);
   
   ManifestContent.Memory = malloc(1);
   ManifestContent.Size = 0;
-  
-  /* Construct URL */
-  memcpy(FullURL, CDN_URL, LengthURL);
-  memcpy(FullURL + LengthURL, Client->ClientVersionUpload, LengthVersion);
-  memcpy(FullURL + LengthURL + LengthVersion, PACKAGE_MANIFEST, ManifestLength);
-  FullURL[LengthURL + LengthVersion + ManifestLength] = '\0';
   
   /* Get the manifest containing all the packages information needed. */
   CURLcode Response = CurlGet(&ManifestContent, (char*)FullURL);
