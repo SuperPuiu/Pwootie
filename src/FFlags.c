@@ -11,12 +11,14 @@
 
 #include <ctype.h>
 
-#define STATIC_PATH           "/prefix/drive_c/users/steamuser/AppData/Local/Roblox/ClientSettings/StudioAppSettings.json"
+#define DEFAULT_SETTINGS_PATH "/prefix/drive_c/users/steamuser/AppData/Local/Roblox/ClientSettings/StudioAppSettings.json"
 #define VERSION_SETTINGS_PATH "ClientSettings/ClientAppSettings.json"
 
 int32_t FileDescriptor;
 char *ClientSettings = NULL;
 
+/* ApplyFFlag(char*, char*) is used to change the state of a fast flag.
+ * @return 0 on success and -1 on failure. */
 int8_t ApplyFFlag(char *EntryName, char *Data) {
   unused(EntryName);
   unused(Data);
@@ -24,12 +26,18 @@ int8_t ApplyFFlag(char *EntryName, char *Data) {
   return 0;
 }
 
-/* CreateFFlags(char *Version) is used to create a copy of the studio settings found within the prefix folder.
+/* CreateFFlags(char*, char*) is used to create a copy of the studio settings found within the prefix folder.
+ * OldVersion can be NULL, which will cause CreateFFlags to use the DEFAULT_SETTINGS_PATH variable.
  * @return 0 on success and -1 on failure. */
-int8_t CreateFFlags(char *Version) {
+int8_t CreateFFlags(char *Version, char *OldVersion) {
   FILE *FFlagsFile, *FileDestination;
+  char *FFlagsPath;
 
-  char *FFlagsPath = BuildString(5, getenv("HOME"), "/", INSTALL_DIR, "/", STATIC_PATH);
+  if (!OldVersion)
+    FFlagsPath = BuildString(5, getenv("HOME"), "/", INSTALL_DIR, "/", DEFAULT_SETTINGS_PATH);
+  else
+    FFlagsPath = BuildString(5, getenv("HOME"), "/", INSTALL_DIR, "/", OldVersion, "/", VERSION_SETTINGS_PATH);
+
   char *DestinationPath = BuildString(7, getenv("HOME"), "/", INSTALL_DIR, "/", Version, "/", VERSION_SETTINGS_PATH);
   char *Buffer = NULL;
 
@@ -96,15 +104,16 @@ error:
   return -1;
 }
 
-/* ReadFFlag(char *EntryName) is used to read to a buffer the state of a fast flag. 
- * Not to be confused with OutputFFlags(char *EntryName) which is used for console outputting. 
+/* ReadFFlag(char*) is used to read to a buffer the state of a fast flag. 
+ * Not to be confused with OutputFFlags(char *EntryName) which is used for console outputting.
+ * ReadFFlag will return the **first** match, so the EntryName should be the complete name for the flag.
  * @return the fast flag state on success and NULL on failure. */
 char *ReadFFlag(char *EntryName) {
   unused(EntryName);
   return NULL;
 }
 
-/* OutputFFlags(char *EntryName) is used to output to console fflags which contain the same EntryName substring.
+/* OutputFFlags(char*) is used to output to console fflags which contain the same EntryName substring.
  * Not to be confused with ReadFFlag() which returns a string on the first substring found.
  * @return -1 on failure and 0 on success. */
 int8_t OutputFFlags(char *EntryName) {
@@ -114,7 +123,7 @@ int8_t OutputFFlags(char *EntryName) {
   }
 
   if (!ClientSettings)
-    Error("[FATAL]: Unable to read fflag.", ERR_STANDARD);
+    Error("[FATAL]: ClientSettings file is not open.", ERR_STANDARD);
 
   char *StrStart = strstr(ClientSettings, EntryName);
   uint32_t EntryLen = strlen(EntryName);
@@ -147,7 +156,7 @@ int8_t OutputFFlags(char *EntryName) {
   return 0;
 }
 
-/* LoadFFlags(char *Version) is used to load the FFlags into memory.
+/* LoadFFlags(char*) is used to load the FFlags into memory.
  * @return -1 on failure and 0 on success. */
 int8_t LoadFFlags(char *Version) {
   struct stat SettingsStat;
@@ -157,7 +166,6 @@ int8_t LoadFFlags(char *Version) {
 
   if (FileDescriptor == -1) {
     Error("[ERROR]: LoadFFlags failed to initialize FileDescriptor.", ERR_STANDARD | ERR_NOEXIT);
-    // CreateFFlags(Version);
     goto error;
   }
   
@@ -177,6 +185,8 @@ error:
   return -1;
 }
 
+/* ExitFFLags() should be called when the program quits.
+ * @return always NULL. */
 void ExitFFLags() {
   close(FileDescriptor);
 }
