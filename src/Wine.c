@@ -53,7 +53,7 @@ int8_t SetupProton(uint8_t CheckExistence) {
 
   char *Path = malloc(Total * sizeof(char)), *PathCopy = malloc(Total * sizeof(char));
   char *Command = malloc(Total * 2 + 3 + 4);
-  FILE *TarFile;
+  FILE *TarFile = NULL;
 
   memcpy(Path, getenv("HOME"), HomeLength);
   memcpy(Path + HomeLength + 1, INSTALL_DIR, InstallDirLength);
