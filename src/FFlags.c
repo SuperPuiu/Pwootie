@@ -36,7 +36,7 @@ int8_t CreateFFlags(char *Version, char *OldVersion) {
   if (!OldVersion)
     FFlagsPath = BuildString(5, getenv("HOME"), "/", INSTALL_DIR, "/", DEFAULT_SETTINGS_PATH);
   else
-    FFlagsPath = BuildString(5, getenv("HOME"), "/", INSTALL_DIR, "/", OldVersion, "/", VERSION_SETTINGS_PATH);
+    FFlagsPath = BuildString(7, getenv("HOME"), "/", INSTALL_DIR, "/", OldVersion, "/", VERSION_SETTINGS_PATH);
 
   char *DestinationPath = BuildString(7, getenv("HOME"), "/", INSTALL_DIR, "/", Version, "/", VERSION_SETTINGS_PATH);
   char *Buffer = NULL;
@@ -61,7 +61,21 @@ int8_t CreateFFlags(char *Version, char *OldVersion) {
   if (!FFlagsFile) {
     Error("[ERROR]: Unable to open FFlagsFile file.", ERR_STANDARD | ERR_NOEXIT);
     Error(FFlagsPath, ERR_STANDARD | ERR_NOEXIT);
-    goto error;
+    
+    /* Try to use the default copy of the fastflags file if we have OldVersion initialized. */
+    if (OldVersion) {
+      printf("[INFO]: Attempting to load default fastflags file..\n");
+      free(FFlagsPath);
+      FFlagsPath = BuildString(5, getenv("HOME"), "/", INSTALL_DIR, "/", DEFAULT_SETTINGS_PATH);
+      FFlagsFile = fopen(FFlagsPath, "r");
+      
+      if (!FFlagsFile) {
+        Error("[ERROR]: Unable to open the default fastflags file.\n", ERR_STANDARD | ERR_NOEXIT);
+        goto error;
+      }
+    } else {
+      goto error;
+    }
   } else if (!FileDestination) {
     Error("[ERROR]: Unable to open FileDestination file.", ERR_STANDARD | ERR_NOEXIT);
     Error(DestinationPath, ERR_STANDARD | ERR_NOEXIT);
