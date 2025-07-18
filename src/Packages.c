@@ -215,8 +215,10 @@ int8_t InstallPackages(FetchStruct *Fetched, char *Version) {
     free(ZipStat);
     zip_close(ZipPointer);
 
-    printf("[INFO]: Installed package %i out of %i.\n", i + 1, Fetched->TotalPackages);
+    printf("[INFO]: Installing package %i out of %i.\r", i + 1, Fetched->TotalPackages);
   }
+
+  printf("\n");
 
   /* Free the instructions 2D array. */
   for (uint8_t i = 0; i < Fetched->TotalPackages; i++)
@@ -289,7 +291,7 @@ int8_t DownloadPackages(FetchStruct *Fetched, char *Version) {
       }
 
       if (Response != CURLE_OK) {
-        printf("[ATTEMPT %i]: Failed to download %s. (%s)", Attempts, Fetched->PackageList[Index].Name, curl_easy_strerror(Response));
+        printf("\n[ATTEMPT %i]: Failed to download %s. (%s)\n", Attempts, Fetched->PackageList[Index].Name, curl_easy_strerror(Response));
         continue;
       }
       
@@ -298,7 +300,7 @@ int8_t DownloadPackages(FetchStruct *Fetched, char *Version) {
       ChecksumToString(Checksum, ChecksumBuf);
 
       if (strcmp(ChecksumBuf, Fetched->PackageList[Index].Checksum) != 0) {
-        printf("[ATTEMPT %i]: Checksum is not matching normal %s checksum.\n", Attempts, Fetched->PackageList[Index].Name);
+        printf("\n[ATTEMPT %i]: Checksum is not matching normal %s checksum.\n", Attempts, Fetched->PackageList[Index].Name);
         fclose(ZipFile);
         continue;
       }
@@ -307,12 +309,14 @@ int8_t DownloadPackages(FetchStruct *Fetched, char *Version) {
     }
 
     if (Downloaded) {
-      printf("[INFO]: Downloaded package %i out of %i.\n", Index + 1, Fetched->TotalPackages);
+      printf("[INFO]: Downloaded package %i out of %i.\r", Index + 1, Fetched->TotalPackages);
     } else {
       Error("[ERROR]: Failed to download package. Aborting download.\n", ERR_STANDARD | ERR_NOEXIT);
       goto error;
     }
   }
+
+  printf("\n");
   
   free(ZipFilePath);
   free(FullURL);
