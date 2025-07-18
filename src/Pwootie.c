@@ -84,14 +84,14 @@ char* PwootieReadEntry(char *Entry) {
   if (!PwootieFile)
     return NULL;
 
-  char *Data = malloc(1 * sizeof(char));
-
   uint32_t  DataSize = 1, DataIndex = 0, BufferIndex = 0;
   int32_t   EntryStart = PwootieGetEntry(Entry);
   
   /* No entry to read from. */
   if (EntryStart == -1)
     return NULL;
+  
+  char *Data = malloc(1 * sizeof(char));
 
   BufferIndex = (uint32_t)EntryStart;
 
