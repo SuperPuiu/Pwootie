@@ -87,8 +87,7 @@ int8_t Install(char *Version, uint8_t CheckVersion) {
   if (Status == -1)
     goto error;
   
-  /* Write the new version to the version entry of the Pwootie file. 
-   * If the flag earlier was set to 0 then it means we have to create the Pwootie file now.*/
+  /* Open the Pwootie file, if it isn't open already. */
   if (!PwootieFile)
     OpenPwootieFile();
 
@@ -100,6 +99,9 @@ int8_t Install(char *Version, uint8_t CheckVersion) {
 
   PwootieWriteEntry("version", Version);
   
+  /* Create the fast flags file. */
+  CreateFFlags(Version, LastVersion);
+
   /* Delete the old version, if it exists. */
   if (LastVersion) {
     DeleteVersion(LastVersion);
