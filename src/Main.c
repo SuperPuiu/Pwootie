@@ -5,20 +5,26 @@ int main(int argc, char **argv) {
   curl_global_init(CURL_GLOBAL_ALL);
 
   VersionData Data;
+
+  SetupHandles();
+  GetVersionData(&Data);
+  
   char *StudioVersion = Data.ClientVersionUpload;
   char *ForcedVersion = PwootieReadEntry("forced_version");
   
   /* If we have a ForcedVersion, then use that. */
   StudioVersion = ForcedVersion ? ForcedVersion : StudioVersion;
 
-  SetupHandles();
-  GetVersionData(&Data);
-
   if (argc > 1) {
     if (strcmp(argv[1], "reinstall") == 0) {
+      if (argc < 3) {
+        printf("[INFO]: No reinstall option specified. You must either specify proton or studio to be reinstalled.\n");
+        goto exit;
+      }
+
       if (strcmp(argv[2], "proton") == 0)
         SetupProton(0);
-      else if (strcmp(argv[2], "studio"))
+      else if (strcmp(argv[2], "studio") == 0)
         Install(StudioVersion, 0);
       else
         printf("[INFO]: Unknown reinstall option. (available options: proton, studio)\n");
