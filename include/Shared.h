@@ -85,10 +85,10 @@ CURLcode    CurlDownload(FILE *File, char *WithURL);
 CURLcode    CurlGet(MemoryStruct *Chunk, char *WithURL);
 
 /* FFlags.c */
-int8_t ApplyFFlag(char *EntryName, char *Data);
-int8_t OutputFFlags(char *EntryName);
-int8_t LoadFFlags(char *Version);
-int8_t CreateFFlags(char *Version);
-char *ReadFFlag(char *EntryName);
+int8_t  ApplyFFlag(char *EntryName, char *Data);
+int8_t  OutputFFlags(char *EntryName);
+int8_t  LoadFFlags(char *Version);
+int8_t  CreateFFlags(char *Version, char *OldVersion);
+char    *ReadFFlag(char *EntryName);
 
 #endif
