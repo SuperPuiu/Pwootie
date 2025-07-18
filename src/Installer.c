@@ -1,10 +1,27 @@
+#define _XOPEN_SOURCE 500 /* For nftw */
+
 #include <Shared.h>
 #include <errno.h>
+#include <ftw.h>
 
 /* Functions found in Packages.c */
 int8_t DownloadPackages(FetchStruct *Fetched, char *Version);
 int8_t InstallPackages(FetchStruct *Fetched, char *Version);
 FetchStruct *FetchPackages(char *Version);
+
+int32_t DeleteFile(const char *pathname, const struct stat *sbuf, int32_t type, struct FTW *ftwb) {
+  unused(sbuf);
+  unused(type);
+  unused(ftwb);
+
+  if(remove(pathname) < 0) {
+    Error("DeleteFile() call failed.", ERR_STANDARD | ERR_NOEXIT);
+    Error((char*)pathname, ERR_STANDARD | ERR_NOEXIT);
+    return -1;
+  }
+
+  return 0;
+}
 
 void DeleteVersion(char *Version) {
   uint32_t InstallDirLength = strlen(INSTALL_DIR), HomeLength = strlen(getenv("HOME"));
@@ -22,7 +39,7 @@ void DeleteVersion(char *Version) {
   VersionPath[HomeLength] = VersionPath[HomeLength + InstallDirLength + 1] = '/';
   VersionPath[Total - 1] = '\0';
   
-  if (remove(VersionPath) != 0) {
+  if (nftw(VersionPath, DeleteFile, 10, FTW_DEPTH | FTW_MOUNT | FTW_PHYS) < 0) {
     Error("[ERROR]: Failed to remove old VersionPath.", ERR_STANDARD | ERR_NOEXIT);
     Error(VersionPath, ERR_STANDARD | ERR_NOEXIT);
   }
