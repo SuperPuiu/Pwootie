@@ -37,7 +37,7 @@ int8_t InstallPackages(FetchStruct *Fetched, char *Version) {
   /* The 'Official' string is built inside of this function only to reuse it later. Same for 'InstallDir'. */
   char *Official        = malloc((InstallerLength + TempDirLength + 64 + 1) * sizeof(char));
   char *InstallDir      = malloc((InstallDirTotal) * sizeof(char));
-  char *FullURL         = BuildString(4, CDN_URL, "-", Version, OFFICIAL_INSTALLER);
+  char *FullURL         = BuildString(4, CDN_URL, Version, "-", OFFICIAL_INSTALLER);
 
   if (!Official) 
     Error("[FATAL]: Unable to allocate Official during InstallPackages call.", ERR_MEMORY);
@@ -64,7 +64,7 @@ int8_t InstallPackages(FetchStruct *Fetched, char *Version) {
     Error(Official, ERR_STANDARD | ERR_NOEXIT);
     return -1;
   }
-
+  
   Response = CurlDownload(Installer, FullURL);
 
   if (Response != CURLE_OK) {
