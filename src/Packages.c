@@ -216,6 +216,7 @@ int8_t InstallPackages(FetchStruct *Fetched, char *Version) {
     zip_close(ZipPointer);
 
     printf("[INFO]: Installing package %i out of %i.\r", i + 1, Fetched->TotalPackages);
+    fflush(stdout);
   }
 
   printf("\n");
@@ -310,6 +311,7 @@ int8_t DownloadPackages(FetchStruct *Fetched, char *Version) {
 
     if (Downloaded) {
       printf("[INFO]: Downloaded package %i out of %i.\r", Index + 1, Fetched->TotalPackages);
+      fflush(stdout);
     } else {
       Error("[ERROR]: Failed to download package. Aborting download.\n", ERR_STANDARD | ERR_NOEXIT);
       goto error;
