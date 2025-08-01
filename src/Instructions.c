@@ -36,18 +36,14 @@ char** ExtractInstructions(FILE *Installer, FetchStruct *Fetched) {
   uint16_t OptHeaderSize;
   char SectionName[8];
 
-  if (!Instructions) {
-    printf("[FATAL]: Unable to allocate Instructions array in ExtractInstructions call.\n");
-    exit(EXIT_FAILURE);
-  }
+  if (!Instructions)
+    Error("[FATAL]: Unable to allocate Instructions array in ExtractInstructions call.", ERR_MEMORY);
 
   for (uint8_t i = 0; i < TotalPackages; i++) {
     Instructions[i] = malloc(128 * sizeof(char)); /* May be wasting a bit of memory here. */
 
-    if (!Instructions[i]) {
-      printf("[FATAL]: Unable to allocate instructions array for package indexed %i.", i);
-      exit(EXIT_FAILURE);
-    }
+    if (!Instructions[i])
+      Error("[FATAL]: Unable to allocate instructions array for a package during ExtractInstructions call.", ERR_MEMORY);
   }
 
   /* Read only the required information from the MS-DOS header. 
@@ -84,10 +80,8 @@ char** ExtractInstructions(FILE *Installer, FetchStruct *Fetched) {
   /* Allocate RawData array. We need it for fast access. */
   RawData = malloc(RawDataSize);
 
-  if (RawData == NULL) {
-    printf("[FATAL]: Unable to allocate RawData array during ExtractInstructions call.\n");
-    exit(EXIT_FAILURE);
-  }
+  if (RawData == NULL)
+    Error("[FATAL]: Unable to allocate RawData array during ExtractInstructions call.\n", ERR_MEMORY);
 
   /* Jump to the .rdata section. */
   fseek(Installer, RawDataPointer, SEEK_CUR);

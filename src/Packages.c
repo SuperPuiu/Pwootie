@@ -23,57 +23,26 @@ void ChecksumToString(uint8_t *Checksum, char *Buffer) {
   Buffer[BufPosition] = '\0';
 }
 
-void BuildDirectoryTree(char *Path) {
-  /* I have NO clue how this works. 
-   * https://stackoverflow.com/questions/7430248/creating-a-new-directory-in-c */
-  char *Separated = strchr(Path + 1, '/');
-
-  while (Separated != NULL) {
-    *Separated = '\0';
-
-    if (mkdir(Path, 0755) && errno != EEXIST) {
-      printf("[FATAL]: Unable to create %s while creating installation directories.\n", Path);
-      exit(EXIT_FAILURE);
-    }
-
-    *Separated = '/';
-    Separated = strchr(Separated + 1, '/');
-  }
-}
-
 /* Prototypes are found in Installer.c */
-void InstallPackages(FetchStruct *Fetched, VersionData *Client) {
+int8_t InstallPackages(FetchStruct *Fetched, char *Version) {
   CURLcode  Response;
   FILE      *Installer;
 
-  uint32_t LengthURL = strlen(CDN_URL), LengthVersion = strlen(Client->ClientVersionUpload);
+  uint32_t SettingsLen = strlen(APP_SETTINGS_DATA), LengthVersion = strlen(Version);
   uint32_t InstallerLength = strlen(OFFICIAL_INSTALLER), TempDirLength = strlen(TEMP_PWOOTIE_FOLDER);
   uint32_t InstallDirLength = strlen(INSTALL_DIR), HomeLength = strlen(getenv("HOME"));
   uint32_t InstallDirTotal = HomeLength + InstallDirLength + LengthVersion + 3 + 253;
-  uint32_t AppSettingsLen = strlen(APP_SETTINGS), SettingsLen = strlen(APP_SETTINGS_DATA);
+  uint32_t AppSettingsLen = strlen(APP_SETTINGS);
 
-  /* One extra byte for the null terminator and one extra byte for the dash. InstallDir needs two additonal slashes. */
-  char *FullURL         = malloc((LengthURL + LengthVersion + InstallerLength + 2) * sizeof(char));
+  /* The 'Official' string is built inside of this function only to reuse it later. Same for 'InstallDir'. */
   char *Official        = malloc((InstallerLength + TempDirLength + 64 + 1) * sizeof(char));
   char *InstallDir      = malloc((InstallDirTotal) * sizeof(char));
+  char *FullURL         = BuildString(4, CDN_URL, Version, "-", OFFICIAL_INSTALLER);
 
-  if (!FullURL) {
-    printf("[FATAL]: Unable to allocate FullURL during InstallPackages call.\n");
-    exit(EXIT_FAILURE);
-  } else if (!Official) {
-    printf("[FATAL]: Unable to allocate Official during InstallPackages call.\n");
-    exit(EXIT_FAILURE);
-  } else if (!InstallDir) {
-    printf("[FATAL]: Unable to allocate InstallDir during InstallPackages call.\n");
-    exit(EXIT_FAILURE);
-  }
-
-  /* Construct URL. */
-  memcpy(FullURL, CDN_URL, LengthURL);
-  memcpy(FullURL + LengthURL, Client->ClientVersionUpload, LengthVersion);
-  memcpy(FullURL + LengthURL + LengthVersion + 1, OFFICIAL_INSTALLER, InstallerLength);
-  FullURL[LengthURL + LengthVersion] = '-';
-  FullURL[LengthURL + LengthVersion + InstallerLength + 1] = '\0';
+  if (!Official) 
+    Error("[FATAL]: Unable to allocate Official during InstallPackages call.", ERR_MEMORY);
+  else if (!InstallDir)
+    Error("[FATAL]: Unable to allocate InstallDir during InstallPackages call.", ERR_MEMORY);
   
   /* Construct official downloaded path. */
   memcpy(Official, TEMP_PWOOTIE_FOLDER, TempDirLength);
@@ -83,7 +52,7 @@ void InstallPackages(FetchStruct *Fetched, VersionData *Client) {
   /* Construct installation directory path. */
   memcpy(InstallDir, getenv("HOME"), HomeLength);
   memcpy(InstallDir + HomeLength + 1, INSTALL_DIR, InstallDirLength);
-  memcpy(InstallDir + HomeLength + InstallDirLength + 2, Client->ClientVersionUpload, LengthVersion);
+  memcpy(InstallDir + HomeLength + InstallDirLength + 2, Version, LengthVersion);
   InstallDir[HomeLength] = InstallDir[HomeLength + InstallDirLength + 1] = InstallDir[HomeLength + InstallDirLength + LengthVersion + 2] = '/';
   InstallDir[HomeLength + InstallDirLength + LengthVersion + 3] = '\0';
 
@@ -91,15 +60,17 @@ void InstallPackages(FetchStruct *Fetched, VersionData *Client) {
   Installer = fopen(Official, "w+");
 
   if (!Installer) {
-    printf("[FATAL]: Unable to create file %s during InstallPackages.\n", Official);
-    exit(EXIT_FAILURE);
+    Error("[ERROR]: Unable to create RobloxStudioInstaller file during InstallPackages call.", ERR_STANDARD | ERR_NOEXIT);
+    Error(Official, ERR_STANDARD | ERR_NOEXIT);
+    return -1;
   }
-
+  
   Response = CurlDownload(Installer, FullURL);
 
   if (Response != CURLE_OK) {
-    printf("[FATAL]: Failed to download RobloxStudioInstaller.exe.\n");
-    exit(EXIT_FAILURE);
+    Error("[ERROR]: Failed to download RobloxStudioInstaller.exe.\n", ERR_STANDARD | ERR_NOEXIT);
+    Error((char*)curl_easy_strerror(Response), ERR_STANDARD | ERR_NOEXIT);
+    return -1;
   }
 
   /* For this step, we have two ways of proceeding: 
@@ -136,8 +107,8 @@ void InstallPackages(FetchStruct *Fetched, VersionData *Client) {
   
   FILE *AppSettings = fopen(InstallDir, "w");
   if (!AppSettings) {
-    printf("[FATAL]: Failed to create AppSettings durign InstallPackages call.\n");
-    exit(EXIT_FAILURE);
+    Error("[ERROR]: Failed to create AppSettings durign InstallPackages call.", ERR_STANDARD | ERR_NOEXIT);
+    return -1;
   }
 
   fwrite(APP_SETTINGS_DATA, sizeof(char), SettingsLen, AppSettings);
@@ -146,7 +117,7 @@ void InstallPackages(FetchStruct *Fetched, VersionData *Client) {
   /* Decompress all zips downloaded during DownloadPackages call. */
   for (uint8_t i = 0; i < Fetched->TotalPackages; i++) {
     uint32_t        ZipLength = strlen(Fetched->PackageList[i].Name), InstructionLength = strlen(Instructions[i]);
-    int32_t         Error = 0;
+    int32_t         ErrorCode = 0;
     zip_t           *ZipPointer;
     zip_error_t     ZipError;
     struct zip_stat *ZipStat = calloc(256, sizeof(int));
@@ -156,8 +127,12 @@ void InstallPackages(FetchStruct *Fetched, VersionData *Client) {
     FILE *NewFile;
     
     if (!ZipStat) {
-      printf("[FATAL]: Failed to allocate ZipStat for index %i during InstallPackages call.\n", i);
-      exit(EXIT_FAILURE);
+      char Buffer[5];
+      sprintf(Buffer, "%i", i);
+
+      Error("[ERROR]: Failed to allocate ZipStat for one of the fetched packages during InstallPackages call.", ERR_STANDARD | ERR_NOEXIT);
+      Error(Buffer, ERR_STANDARD | ERR_NOEXIT);
+      return -1;
     }
     
     /* Construct required paths. Official path becomes the path to which the zip file is located. */
@@ -165,12 +140,15 @@ void InstallPackages(FetchStruct *Fetched, VersionData *Client) {
     memcpy(Official + TempDirLength, Fetched->PackageList[i].Name, ZipLength);
     Official[TempDirLength + ZipLength] = '\0'; 
 
-    ZipPointer = zip_open(Official, 0, &Error);
+    ZipPointer = zip_open(Official, 0, &ErrorCode);
 
     if (!ZipPointer) {
-      zip_error_init_with_code(&ZipError, Error);
-      printf("[FATAL]: Unable to open zip %s. (%s)\n", Official, zip_error_strerror(&ZipError));
-      exit(EXIT_FAILURE);
+      zip_error_init_with_code(&ZipError, ErrorCode);
+      Error("[FATAL]: Unable to open one of the zip files.", ERR_STANDARD | ERR_NOEXIT);
+      Error(Official, ERR_STANDARD | ERR_NOEXIT);
+      Error((char*)zip_error_strerror(&ZipError), ERR_STANDARD | ERR_NOEXIT);
+
+      return -1;
     }
 
     /* Read all entries within the zip. */
@@ -183,8 +161,13 @@ void InstallPackages(FetchStruct *Fetched, VersionData *Client) {
       uint8_t Directory;
 
       if (!Name) {
-        printf("[FATAL]: Error occured while getting entry %li from zip %s.\n", Entry, Official);
-        exit(EXIT_FAILURE);
+        char Buffer[32];
+        sprintf(Buffer, "%li", Entry);
+
+        Error("[ERROR]: Error occured while getting one of the entries from a zip.", ERR_STANDARD | ERR_NOEXIT);
+        Error(Buffer, ERR_STANDARD | ERR_NOEXIT);
+        Error(Official, ERR_STANDARD | ERR_NOEXIT);
+        return -1;
       }
       
       Directory = Name[NameLength - 1] == 92; /* Is the entry a directory? */
@@ -204,18 +187,17 @@ void InstallPackages(FetchStruct *Fetched, VersionData *Client) {
       zip_stat_index(ZipPointer, Entry, 0, ZipStat);
       Memory = calloc(ZipStat->size, sizeof(char));
       
-      if (!Memory) {
-        printf("[FATAL]: Unable to allocate Memory variable for %s during InstallPackages call.\n", Name);
-        exit(EXIT_FAILURE);
-      }
+      if (!Memory)
+        Error("[FATAL]: Unable to allocate Memory variable during InstallPackages call.", ERR_MEMORY);
       
       /* Include string terminator. */
       memcpy(InstallDir + HomeLength + InstallDirLength + InstructionLength + LengthVersion + 3, Name, NameLength + 1);
       NewFile = fopen(InstallDir, "wb");
       
       if (!NewFile) {
-        printf("[FATAL]: Unable to open %s to write contents. (errno: %s)\n", InstallDir, strerror(errno));
-        exit(EXIT_FAILURE);
+        Error("[ERROR]: Unable to open a file to write contents.", ERR_STANDARD | ERR_NOEXIT);
+        Error(InstallDir, ERR_STANDARD | ERR_NOEXIT);
+        return -1;
       }
 
       FileDescriptor = zip_fopen_index(ZipPointer, Entry, 0);
@@ -233,47 +215,54 @@ void InstallPackages(FetchStruct *Fetched, VersionData *Client) {
     free(ZipStat);
     zip_close(ZipPointer);
 
-    printf("[INFO]: Installed package %i out of %i.\n", i + 1, Fetched->TotalPackages);
+    printf("[INFO]: Installing package %i out of %i.\r", i + 1, Fetched->TotalPackages);
+    fflush(stdout);
   }
+
+  printf("\n");
 
   /* Free the instructions 2D array. */
   for (uint8_t i = 0; i < Fetched->TotalPackages; i++)
     free(Instructions[i]);
   free(Instructions);
   
+  /* Remove temporary directory. We need to reset the path buffer. 
+   * We ignore error checking because really, what's the point? We're almost done. */
+  Official[InstallerLength + TempDirLength] = '\0';
+  remove(Official);
+
   /* Free additional variables. */
   free(FullURL);
   free(InstallDir);
   free(Official);
+
+  return 0;
 }
 
-void DownloadPackages(FetchStruct *Fetched, VersionData *Client) {
-  uint32_t LengthURL = strlen(CDN_URL), LengthVersion = strlen(Client->ClientVersionUpload), RootPartLength = strlen(TEMP_PWOOTIE_FOLDER);
+int8_t DownloadPackages(FetchStruct *Fetched, char *Version) {
+  uint32_t LengthURL = strlen(CDN_URL), LengthVersion = strlen(Version), RootPartLength = strlen(TEMP_PWOOTIE_FOLDER);
   /* One extra byte for the null terminator and one extra byte for the dash. 
    * Allocate the maximum possible size to avoid reallocating the buffers every single package download. */
   char *FullURL = malloc((LengthURL + LengthVersion + Fetched->LongestName + 2) * sizeof(char));
   char *ZipFilePath = malloc((RootPartLength + Fetched->LongestName + 2) * sizeof(char));
 
-  if (!FullURL) {
-    printf("[FATAL]: Failed to allocate memory for FullURL during DownloadPackages call.\n");
-    exit(EXIT_FAILURE);
-  } else if (!ZipFilePath) {
-    printf("[FATAL]: Failed to allocate memory for ZipFilePath during DownloadPackages call.\n");
-    exit(EXIT_FAILURE);
-  }
+  if (!FullURL)
+    Error("[FATAL]: Failed to allocate memory for FullURL during DownloadPackages call.", ERR_MEMORY);
+  else if (!ZipFilePath)
+    Error("[FATAL]: Failed to allocate memory for ZipFilePath during DownloadPackages call.", ERR_MEMORY);
   
   memcpy(ZipFilePath, TEMP_PWOOTIE_FOLDER, RootPartLength);
   ZipFilePath[RootPartLength] = '/';
 
   memcpy(FullURL, CDN_URL, LengthURL);
-  memcpy(FullURL + LengthURL, Client->ClientVersionUpload, LengthVersion);
+  memcpy(FullURL + LengthURL, Version, LengthVersion);
   FullURL[LengthURL + LengthVersion] = '-';
 
   /* Create a temp folder for downloads. 
    * The installer function cleans it once installation finishes.*/
   if (mkdir(TEMP_PWOOTIE_FOLDER, 0755) && errno != EEXIST) {
-    printf("[FATAL]: Failed to create new directory within /tmp/. (%s)\n", strerror(errno));
-    exit(EXIT_FAILURE);
+    Error("[FATAL]: Failed to create new directory within /tmp/.", ERR_STANDARD | ERR_NOEXIT);
+    return -1;
   }
 
   /* Loop over all packages and download the require content for them. 
@@ -297,12 +286,13 @@ void DownloadPackages(FetchStruct *Fetched, VersionData *Client) {
       char      ChecksumBuf[33];
       
       if (!ZipFile) {
-        printf("[FATAL]: Unable to open %s.\n", ZipFilePath);
-        exit(EXIT_FAILURE);
+        Error("[FATAL]: Unable to open a zip file.", ERR_STANDARD | ERR_NOEXIT);
+        Error(ZipFilePath, ERR_STANDARD | ERR_NOEXIT);
+        goto error;
       }
 
       if (Response != CURLE_OK) {
-        printf("[ATTEMPT %i]: Failed to download %s. (%s)\n", Attempts, Fetched->PackageList[Index].Name, curl_easy_strerror(Response));
+        printf("\n[ATTEMPT %i]: Failed to download %s. (%s)\n", Attempts, Fetched->PackageList[Index].Name, curl_easy_strerror(Response));
         continue;
       }
       
@@ -311,7 +301,7 @@ void DownloadPackages(FetchStruct *Fetched, VersionData *Client) {
       ChecksumToString(Checksum, ChecksumBuf);
 
       if (strcmp(ChecksumBuf, Fetched->PackageList[Index].Checksum) != 0) {
-        printf("[ATTEMPT %i]: Checksum is not matching normal %s checksum.\n", Attempts, Fetched->PackageList[Index].Name);
+        printf("\n[ATTEMPT %i]: Checksum is not matching normal %s checksum.\n", Attempts, Fetched->PackageList[Index].Name);
         fclose(ZipFile);
         continue;
       }
@@ -320,54 +310,51 @@ void DownloadPackages(FetchStruct *Fetched, VersionData *Client) {
     }
 
     if (Downloaded) {
-      printf("[INFO]: Downloaded package %i out of %i.\n", Index + 1, Fetched->TotalPackages);
+      printf("[INFO]: Downloaded package %i out of %i.\r", Index + 1, Fetched->TotalPackages);
+      fflush(stdout);
     } else {
-      printf("[FATAL]: Failed to download package. Aborting download.\n");
-      exit(EXIT_FAILURE);
+      Error("[ERROR]: Failed to download package. Aborting download.\n", ERR_STANDARD | ERR_NOEXIT);
+      goto error;
     }
   }
+
+  printf("\n");
   
   free(ZipFilePath);
   free(FullURL);
+  return 0;
+
+error:
+  free(ZipFilePath);
+  free(FullURL);
+  return -1;
 }
 
-FetchStruct* FetchPackages(VersionData *Client) {
+FetchStruct* FetchPackages(char *Version) {
   MemoryStruct ManifestContent; 
   
   /* Last time I counted there were 33 packages. Hopefully I didn't count them wrong. */
   uint8_t PackageArraySize = 33, CurrentPackage = 0;
-  uint32_t LengthURL = strlen(CDN_URL), LengthVersion = strlen(Client->ClientVersionUpload), ManifestLength = strlen(PACKAGE_MANIFEST);
-  
-  uint8_t *FullURL = malloc((LengthURL + LengthVersion + ManifestLength + 1) * sizeof(uint8_t)); /* One extra byte for null terminator. */
+
+  char *FullURL = BuildString(3, CDN_URL, Version, PACKAGE_MANIFEST);
   Package *PackagesData = malloc(sizeof(Package) * PackageArraySize);
   FetchStruct *ReturnStruct = malloc(sizeof(FetchStruct));
 
-  if (!FullURL) {
-    printf("[FATAL]: Failed to allocate FullURL within GetPackages call.\n");
-    exit(EXIT_FAILURE);
-  } else if (!PackagesData) {
-    printf("[FATAL]: Failed to allocate PackagesData within GetPackages call.\n");
-    exit(EXIT_FAILURE);
-  } else if (!ReturnStruct) {
-    printf("[FATAL]: Failed to allocate ReturnStruct within GetPackages call.\n");
-    exit(EXIT_FAILURE);
-  }
-
+  if (!PackagesData)
+    Error("[FATAL]: Failed to allocate PackagesData within GetPackages call.", ERR_MEMORY);
+  else if (!ReturnStruct)
+    Error("[FATAL]: Failed to allocate ReturnStruct within GetPackages call.", ERR_MEMORY);
+  
   ManifestContent.Memory = malloc(1);
   ManifestContent.Size = 0;
-  
-  /* Construct URL */
-  memcpy(FullURL, CDN_URL, LengthURL);
-  memcpy(FullURL + LengthURL, Client->ClientVersionUpload, LengthVersion);
-  memcpy(FullURL + LengthURL + LengthVersion, PACKAGE_MANIFEST, ManifestLength);
-  FullURL[LengthURL + LengthVersion + ManifestLength] = '\0';
   
   /* Get the manifest containing all the packages information needed. */
   CURLcode Response = CurlGet(&ManifestContent, (char*)FullURL);
 
   if (Response != CURLE_OK) {
-    printf("[FATAL]: GetPackages failed: %s\n", curl_easy_strerror(Response));
-    exit(EXIT_FAILURE);
+    Error("[ERROR]: GetPackages call failed to download the Manifest file.", ERR_STANDARD | ERR_NOEXIT);
+    Error((char*)curl_easy_strerror(Response), ERR_STANDARD | ERR_NOEXIT);
+    goto error;
   }
 
   /* Construct PackagesData. Inside the for loop we're also allocating more space for PackagesData. 
@@ -384,8 +371,8 @@ FetchStruct* FetchPackages(VersionData *Client) {
       Package *l_PackagesData = realloc(PackagesData, sizeof(Package) * PackageArraySize);
       
       if (!l_PackagesData) {
-        printf("[FATAL]: Unable to reallocate PackagesData from GetPackages function.\n");
-        exit(EXIT_FAILURE);
+        Error("[ERROR]: Unable to reallocate PackagesData from GetPackages function.", ERR_STANDARD | ERR_NOEXIT);
+        goto error;
       }
 
       PackagesData = l_PackagesData;
@@ -437,4 +424,10 @@ FetchStruct* FetchPackages(VersionData *Client) {
   free(FullURL);
   free(ManifestContent.Memory);
   return ReturnStruct;
+
+error:
+  free(PackagesData);
+  free(FullURL);
+  free(ManifestContent.Memory);
+  return NULL;
 }

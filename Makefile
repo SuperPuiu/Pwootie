@@ -2,9 +2,9 @@ CFLAGS = -Wall -Wextra -Wshadow -o3
 LIBS = -lcurl -lzip
 SRCS = $(wildcard src/*.c)
 
-all:
+test:
 	mkdir -p bin
-	gcc $(CFLAGS) $(LIBS) $(SRCS) -fsanitize=address -g -o bin/PwootieTest -I include/
+	gcc $(CFLAGS) $(LIBS) $(SRCS) -fsanitize=address -fsanitize=leak -g -o bin/PwootieTest -I include/
 
 release:
 	mkdir -p bin

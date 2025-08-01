@@ -1,53 +1,129 @@
+#define _XOPEN_SOURCE 500 /* For nftw */
+
 #include <Shared.h>
 #include <errno.h>
+#include <ftw.h>
 
 /* Functions found in Packages.c */
-void DownloadPackages(FetchStruct *Fetched, VersionData *Client);
-void InstallPackages(FetchStruct *Fetched, VersionData *Client);
-FetchStruct *FetchPackages(VersionData *Client);
+int8_t DownloadPackages(FetchStruct *Fetched, char *Version);
+int8_t InstallPackages(FetchStruct *Fetched, char *Version);
+FetchStruct *FetchPackages(char *Version);
 
-/* Wrapper for the three beautiful functions: FetchPackages, DownloadPackages and InstallPackages. 
- * This function is SKIPPED if GUID matches the last GUID Pwootie saved. */
-void Install(VersionData *Data, uint8_t CheckVersion) {
+int32_t DeleteFile(const char *pathname, const struct stat *sbuf, int32_t type, struct FTW *ftwb) {
+  unused(sbuf);
+  unused(type);
+  unused(ftwb);
+
+  if(remove(pathname) < 0) {
+    Error("DeleteFile() call failed.", ERR_STANDARD | ERR_NOEXIT);
+    Error((char*)pathname, ERR_STANDARD | ERR_NOEXIT);
+    return -1;
+  }
+
+  return 0;
+}
+
+void DeleteVersion(char *Version) {
+  uint32_t InstallDirLength = strlen(INSTALL_DIR), HomeLength = strlen(getenv("HOME"));
+  uint32_t VersionLength = strlen(Version);
+  uint32_t Total = InstallDirLength + HomeLength + VersionLength + 3;
+
+  char *VersionPath = malloc(Total * sizeof(char));
+  
+  if (!VersionPath)
+    Error("[FATAL]: Unable to allocate VersionPath during DeleteVersion call.", ERR_MEMORY);
+
+  memcpy(VersionPath, getenv("HOME"), HomeLength);
+  memcpy(VersionPath + HomeLength + 1, INSTALL_DIR, InstallDirLength);
+  memcpy(VersionPath + HomeLength + InstallDirLength + 2, Version, VersionLength);
+  VersionPath[HomeLength] = VersionPath[HomeLength + InstallDirLength + 1] = '/';
+  VersionPath[Total - 1] = '\0';
+  
+  if (nftw(VersionPath, DeleteFile, 10, FTW_DEPTH | FTW_MOUNT | FTW_PHYS) < 0) {
+    Error("[ERROR]: Failed to remove old VersionPath.", ERR_STANDARD | ERR_NOEXIT);
+    Error(VersionPath, ERR_STANDARD | ERR_NOEXIT);
+  }
+
+  free(VersionPath);
+}
+
+/* Install() function handles the installation process using the functions found in Packages.c
+ * @return -1 on failure and 0 on success. */
+int8_t Install(char *Version, uint8_t CheckVersion) {
+  printf("[INFO]: Installing %s.\n", Version);
+
   /* Before starting, let's check if we already have the right version installed.
    * This process may be skipped by setting CheckVersion flag to 0.*/
-  uint8_t Flag = OpenPwootieFile();
-  
-  if (CheckVersion == 1 && Flag) {
-    char *Version = PwootieReadEntry("version");
+  int8_t Status = 0;
 
-    if (Version) {
-      if (strcmp(Version, Data->ClientVersionUpload) == 0) {
+  FetchStruct *Fetched = NULL;
+  char *LastVersion = NULL;
+
+  if (CheckVersion == 1 && PwootieFile) {
+    LastVersion = PwootieReadEntry("version");
+
+    if (LastVersion) {
+      if (strcmp(LastVersion, Version) == 0) {
         printf("[INFO]: Roblox studio seems to be up-to-date. Aborting installation process.\n");
-        free(Version);
-        return;
+        free(LastVersion);
+        return 0;
       }
     }
-
-    free(Version);
   }
 
   /* First step: get a list of packages we have to download, along with their checksum, real size and compressed size. 
    * FetchStruct also contains some additional information helpful to other functions. */
-  FetchStruct *Fetched = FetchPackages(Data);
-
+  Fetched = FetchPackages(Version);
+  if (!Fetched)
+    goto error;
+  
   /* Second step: download the packages using the data we got above. */
-  DownloadPackages(Fetched, Data);
+  Status = DownloadPackages(Fetched, Version);
+  if (Status == -1)
+    goto error;
 
   /* Last step: install the packages. */
-  InstallPackages(Fetched, Data);
+  Status = InstallPackages(Fetched, Version);
+  if (Status == -1)
+    goto error;
   
-  /* Very important: setup the custom WINE prefix for studio. */
-  SetupPrefix();
-
-  /* Write the new version to the version entry of the Pwootie file. 
-   * If the flag earlier was set to 0 then it means we have to create the Pwootie file now.*/
-  if (!Flag)
+  /* Open the Pwootie file, if it isn't open already. */
+  if (!PwootieFile)
     OpenPwootieFile();
 
-  PwootieWriteEntry("version", Data->ClientVersionUpload);
+  /* Very important: download proton and setup the custom WINE prefix for studio. */
+  SetupProton(1);
+  Status = SetupPrefix();
+  if (Status == -1)
+    goto error;
 
-  /* Clean all the variables and close the PwootieFile. */
+  PwootieWriteEntry("version", Version);
+  
+  /* Create the fast flags file. */
+  CreateFFlags(Version, LastVersion);
+
+  /* Delete the old version, if it exists. */
+  if (LastVersion) {
+    DeleteVersion(LastVersion);
+    free(LastVersion);
+  }
+
+  /* Free up the used memory. */
   free(Fetched->PackageList);
   free(Fetched);
+
+  return 0;
+
+error:
+  if (Fetched) {
+    free(Fetched->PackageList);
+    free(Fetched);
+  }
+  
+  if (LastVersion)
+    free(LastVersion);
+
+  Error("[ERROR]: An error was encountered while running Install().", ERR_STANDARD | ERR_NOEXIT);
+
+  return -1;
 }
