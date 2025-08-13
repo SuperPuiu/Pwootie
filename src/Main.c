@@ -4,7 +4,7 @@ int main(int argc, char **argv) {
   OpenPwootieFile();
   curl_global_init(CURL_GLOBAL_ALL);
 
-  VersionData Data;
+  VersionData Data = {NULL, NULL, NULL};
 
   SetupHandles();
   GetVersionData(&Data);
@@ -60,9 +60,14 @@ int main(int argc, char **argv) {
 
 exit:
   /* Cleanup */
-  free(Data.Version);
-  free(Data.ClientVersionUpload);
-  free(Data.BootstrapperVersion);
+  if (Data.Version)
+    free(Data.Version);
+  
+  if (Data.ClientVersionUpload)
+    free(Data.ClientVersionUpload);
+  
+  if (Data.ClientVersionUpload)
+    free(Data.BootstrapperVersion);
   
   if (ForcedVersion)
     free(ForcedVersion);
