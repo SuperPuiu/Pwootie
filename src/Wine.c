@@ -5,22 +5,21 @@
 #define EXECUTABLE  "RobloxStudioBeta.exe"
 #define PROTON_DIR  "proton"
 #define PROTON_NAME "wine-proton-10.0-1-amd64.tar.xz"
-#define PROTON_LINK "https://github.com/Kron4ek/Wine-Builds/releases/download/proton-10.0-1/wine-proton-10.0-1-amd64.tar.xz"
+#define PROTON_LINK "https://github.com/Kron4ek/Wine-Builds/releases/download/proton-10.0-2/wine-proton-10.0-2-amd64.tar.xz"
 
 #include <sys/stat.h>
 #include <Shared.h>
 #include <errno.h>
-#include <pthread.h>
 
 #include <unistd.h>
 
-pthread_t RunThread;
-
-char *GetPrefixPath() {
+/* GetPrefixPath() returns the built prefix path. Allows for ExtraBytes to be allocated by passing a number argument.
+ * @return always a char array. */
+char *GetPrefixPath(uint32_t ExtraBytes) {
   uint32_t HomeLength = strlen(getenv("HOME")), InstallDirLength = strlen(INSTALL_DIR);
   uint32_t PrefixLength = strlen(PREFIX);
 
-  char *Location = malloc((HomeLength + InstallDirLength + PrefixLength + 4) * sizeof(char));
+  char *Location = malloc((HomeLength + InstallDirLength + PrefixLength + ExtraBytes + 4) * sizeof(char));
   
   if (!Location)
     Error("[FATAL]: Unable to allocate Location buffer during GetPrefixPath call.", ERR_MEMORY);
@@ -133,7 +132,7 @@ int8_t SetupPrefix() {
 
   int32_t Status;
   /* Is all this string building needed? */
-  char *Location = GetPrefixPath();
+  char *Location = GetPrefixPath(0);
   
   if (mkdir(Location, 0755) && errno != EEXIST) {
     Error("[FATAL]: Unable to create folder during SetupPrefix call.", ERR_STANDARD | ERR_NOEXIT);
@@ -173,25 +172,14 @@ error:
   return -1;
 }
 
-void *SystemThread(void *Command) {
-  char *StrCommand = Command;
-  
-  system(StrCommand);
-
-  /* If system() ended then I'm pretty sure we can safely cancel the thread. */
-  pthread_cancel(RunThread);
-  
-  /* It should be obvious why we free it here. */
-  free(Command);
-  return 0;
-}
-
 void Run(char *Argument, char *Version) {
   if (Argument == NULL)
     Argument = "";
   
   /* Yeah well I can't put it next to the other char arrays. */
   char *WINE_EXEC = PwootieReadEntry("wine_binary");
+  char *DEBUG_ENTRY = PwootieReadEntry("debug");
+  char *EXTRA_CMD = " > /dev/null 2>&1 & disown";
   uint8_t FreeFlag = 1;
 
   /* If the wine_binary entry doesn't exist, just create a dummy one and hope wine exists. */
@@ -201,14 +189,20 @@ void Run(char *Argument, char *Version) {
     WINE_EXEC = "wine";
   }
   
+  if (DEBUG_ENTRY) {
+    if (strcmp(DEBUG_ENTRY, "true"))
+      EXTRA_CMD = "& disown";
+  }
+
   uint32_t WineLen = strlen(WINE_EXEC), ArgLen = strlen(Argument);
   uint32_t VersionLen = strlen(Version), HomeLength = strlen(getenv("HOME"));
   uint32_t InstallLen = strlen(INSTALL_DIR), ExecutableLen = strlen(EXECUTABLE);
+  uint32_t ExtraCmdLen = strlen(EXTRA_CMD);
   uint32_t ExecPathLen = HomeLength + InstallLen + VersionLen + ExecutableLen + 4;
   
   /* Command needs extra space for the quotes required by the arguments. We may also need an additional dot. */
-  char *Location = GetPrefixPath();
-  char *Command = malloc((WineLen + ArgLen + ExecPathLen + 2 + 3) * sizeof(char));
+  char *Location = GetPrefixPath(0);
+  char *Command = malloc((WineLen + ArgLen + ExecPathLen + ExtraCmdLen + 2 + 3) * sizeof(char));
   char *Executable = malloc(ExecPathLen * sizeof(char));
   
   if (!Command)
@@ -225,17 +219,22 @@ void Run(char *Argument, char *Version) {
   memcpy(Command, WINE_EXEC, WineLen);
   memcpy(Command + WineLen + 1, Executable, ExecPathLen);
   memcpy(Command + WineLen + ExecPathLen + 2, Argument, ArgLen);
+  memcpy(Command + WineLen + ArgLen + ExecPathLen + 3, EXTRA_CMD, ExtraCmdLen);
   Command[WineLen] = Command[WineLen + ExecPathLen] = ' ';
   Command[WineLen + ExecPathLen + 1] = Command[WineLen + ArgLen + ExecPathLen + 2] = '"';
-  Command[WineLen + ArgLen + ExecPathLen + 3] = '\0';
+  Command[WineLen + ArgLen + ExecPathLen + ExtraCmdLen + 3] = '\0';
 
   /* Apparently system() can have some security vulnerabilities? eh? */
   setenv(WINEPREFIX, Location, 1);
-  pthread_create(&RunThread, NULL, SystemThread, (void*)Command);
+  printf("%s\n", Command);
+  system(Command);
 
   free(Executable);
   free(Location);
 
   if (FreeFlag)
     free(WINE_EXEC);
+
+  if (DEBUG_ENTRY)
+    free(DEBUG_ENTRY);
 }
