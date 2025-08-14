@@ -6,6 +6,7 @@
 #define PROTON_DIR  "proton"
 #define PROTON_NAME "wine-proton-10.0-1-amd64.tar.xz"
 #define PROTON_LINK "https://github.com/Kron4ek/Wine-Builds/releases/download/proton-10.0-2/wine-proton-10.0-2-amd64.tar.xz"
+#define NEW_USER    "{\\\"%s\\\":{\\\"username\\\":\\\"%s\\\",\\\"profilePicUrl\\\":\\\"%s\\\"}};"
 
 #include <sys/stat.h>
 #include <Shared.h>
@@ -31,6 +32,122 @@ char *GetPrefixPath(uint32_t ExtraBytes) {
   Location[HomeLength + InstallDirLength + PrefixLength + 3] = '\0';
 
   return Location;
+}
+
+/* AddNewUser() adds a new account to the registry, allowing the user to log into it.
+ * The registry is HKEY_CURRENT_USER/Software/Roblox/RobloxStudio/LoggedInUserStore/https:/www.roblox.com/users.
+ * Format: {"userId1":{"username1":"name","profilePicUrl":"url"}}; {"userId2":{"username":"name","profilePicUrl":"url"}}; ...
+ * The format userId should be the account's userid, the name can be anything and the url must be **ANY** valid url to an image. 
+ *
+ * When first adding the account to the registry key and the user switches to said account, they'll be prompted to use browser login.
+ * After that in theory it **should** work. User should close both studio windows after logging into the new account.
+ *
+ * @return 0 on success and -1 on failure.*/
+int8_t AddNewUser(char *UserId, char *Name, char *URL) {
+  char *StrtolEndChar = NULL;
+  strtol(UserId, &StrtolEndChar, 10);
+  
+  if (errno != 0 || UserId == NULL || *StrtolEndChar) {
+    Error("[ERROR]: UserId is not a valid number.", ERR_STANDARD | ERR_NOEXIT);
+    return -1;
+  }
+  
+  URL = URL ? URL : "";
+  
+  FILE *UserRegistry;
+  
+  const char *RegistryFileName = "user.reg";
+  const char *KeyLocation = "[Software\\\\Roblox\\\\RobloxStudio\\\\LoggedInUsersStore\\\\https:\\\\www.roblox.com]";
+
+  uint32_t UserIdLen = strlen(UserId), NameLen = strlen(Name), URLLen = strlen(URL);
+  uint32_t FormatLen = strlen(NEW_USER), RegFileLen = strlen(RegistryFileName);
+  uint32_t NewBufferLen = UserIdLen + NameLen + URLLen + FormatLen - 5;
+  uint32_t OldKeyLen = 0, RegFileContentSize = 0;
+
+  char *Prefix = GetPrefixPath(RegFileLen + 1);
+  char *Buffer = malloc(NewBufferLen);
+  char *KeyContent = NULL, *RegFileContent = NULL, *KeyStart = NULL;
+  
+  if (!Buffer)
+    Error("[ERROR]: Unable to allocate Buffer during AddNewUser call.", ERR_MEMORY);
+  
+  sprintf(Buffer, NEW_USER, UserId, Name, URL);
+  
+  memcpy(Prefix + strlen(Prefix), RegistryFileName, RegFileLen + 1);
+  UserRegistry = fopen(Prefix, "r+");
+
+  if (!UserRegistry) {
+    Error("[ERROR]: Unable to open registry file.", ERR_STANDARD | ERR_NOEXIT);
+    goto error;
+  }
+
+  fseek(UserRegistry, 0, SEEK_END);
+  RegFileContentSize = ftell(UserRegistry);
+  fseek(UserRegistry, 0, SEEK_SET);
+  
+  RegFileContent = malloc((RegFileContentSize + NewBufferLen + 1) * sizeof(char));
+  
+  if (!RegFileContent)
+    Error("[ERROR]: Unable to allocate RegFileContent during AddNewUser call.", ERR_MEMORY);
+  
+  fread(RegFileContent, sizeof(char), RegFileContentSize, UserRegistry);
+  RegFileContent[RegFileContentSize] = '\0';
+
+  KeyStart = strstr(RegFileContent, KeyLocation);
+
+  if (!KeyStart) {
+    Error("[ERROR]: Unable to find the KeyStart in registry.", ERR_STANDARD | ERR_NOEXIT);
+    goto error;
+  }
+  
+  /* Hope we don't hit the wrong key.. */
+  KeyStart = strstr(KeyStart, "users");
+  if (!KeyStart) {
+    Error("[ERROR]: Unable to find users sub-key.", ERR_STANDARD | ERR_NOEXIT);
+    goto error;
+  }
+
+  KeyStart += 7;
+  
+  do { OldKeyLen++; } while (KeyStart[OldKeyLen] != '\n');
+  
+  KeyContent = malloc((OldKeyLen + NewBufferLen + 1) * sizeof(char));
+  
+  if (!KeyContent)
+    Error("[ERROR]: Unable to allocate KeyContent during AddNewUser call.", ERR_MEMORY);
+  
+  memcpy(KeyContent, KeyStart, OldKeyLen);
+  
+  memcpy(KeyContent + OldKeyLen - 1, Buffer, NewBufferLen - 1);
+  KeyContent[OldKeyLen + NewBufferLen - 2] = '"';
+  KeyContent[OldKeyLen + NewBufferLen - 1] = '\0';
+  
+  memmove(KeyStart + OldKeyLen + NewBufferLen - 1, KeyStart + OldKeyLen + 1, strlen(KeyStart) - OldKeyLen);
+  memcpy(KeyStart, KeyContent, OldKeyLen + NewBufferLen - 1);
+  
+  fseek(UserRegistry, 0, SEEK_SET);
+  fwrite(RegFileContent, sizeof(char), RegFileContentSize + (NewBufferLen - OldKeyLen), UserRegistry);
+
+  fclose(UserRegistry);
+  free(KeyContent);
+  free(Buffer);
+  free(Prefix);
+  free(RegFileContent);
+  return 0;
+error:
+  if (UserRegistry)
+    fclose(UserRegistry);
+
+  free(Prefix);
+  free(Buffer);
+  
+  if (RegFileContent)
+    free(RegFileContent);
+  
+  if (KeyContent)
+    free(KeyContent);
+
+  return -1;
 }
 
 /* SetupProton() is tasked with downloading and extracting proton.
