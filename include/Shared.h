@@ -63,6 +63,7 @@ char *BuildString(uint8_t Elements, ...);
 /* Wine.c */
 int8_t SetupPrefix();
 int8_t SetupProton(uint8_t CheckExistence);
+int8_t AddNewUser(char *UserId, char *Name, char *URL);
 void Run(char *Argument, char *Version);
 
 /* Pwootie.c */
