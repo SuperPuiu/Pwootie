@@ -49,6 +49,38 @@ int main(int argc, char **argv) {
         printf("[INFO]: Unknown fflags option. (available options: apply, read)\n");
 
       goto exit;
+    } else if (strcmp(argv[1], "user") == 0) {
+      if (argc < 3) {
+        printf("[INFO]: No user option specified. (available options: add)\n");
+        goto exit;
+      }
+
+      if (strcmp(argv[2], "add") == 0) {
+        if (argc < 5) {
+          printf("[INFO]: Command 'user add' called with wrong number of arguments. (userid and name are required)\n");
+          goto exit;
+        }
+
+        AddNewUser(argv[3], argv[4], argc >= 5 ? argv[5] : NULL);
+      } else {
+        printf("[INFO]: Unknown user option. (available options: add)\n");
+      }
+
+      goto exit;
+    } else if (strcmp(argv[2], "cookie") == 0) {
+      if (strcmp(argv[3], "read") == 0) {
+
+      } else if (strcmp(argv[3], "write") == 0) {
+        if (argc < 3) {
+          printf("[INFO]: Command 'cookie write' called with wrong number of arguments. (cookie is required)\n");
+          goto exit;
+        }
+
+        goto exit;
+      } else {
+        printf("[INFO]: No cookie option specified. (available options: read, write)\n");
+        goto exit;
+      }
     }
 
     /* The first argument can be the token we need to log into studio. */
