@@ -7,6 +7,15 @@
 #include <stdint.h>
 #include <curl/curl.h>
 
+/* https://stackoverflow.com/questions/1668013/can-likely-unlikely-macros-be-used-in-user-space-code */
+#ifdef __GNUC__
+#define likely(x)       __builtin_expect(!!(x), 1)
+#define unlikely(x)     __builtin_expect(!!(x), 0)
+#else
+#define likely(x)       (x)
+#define unlikely(x)     (x)
+#endif
+
 /* CDN stands for Content Delivery Network */
 #define PACKAGE_MANIFEST    "-rbxPkgManifest.txt"
 #define CDN_URL             "https://setup.rbxcdn.com/"
