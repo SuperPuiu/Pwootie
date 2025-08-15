@@ -22,7 +22,7 @@ char *GetPrefixPath(uint32_t ExtraBytes) {
 
   char *Location = malloc((HomeLength + InstallDirLength + PrefixLength + ExtraBytes + 4) * sizeof(char));
   
-  if (!Location)
+  if (unlikely(!Location))
     Error("[FATAL]: Unable to allocate Location buffer during GetPrefixPath call.", ERR_MEMORY);
 
   memcpy(Location, getenv("HOME"), HomeLength);
@@ -68,7 +68,7 @@ int8_t AddNewUser(char *UserId, char *Name, char *URL) {
   char *Buffer = malloc(NewBufferLen);
   char *KeyContent = NULL, *RegFileContent = NULL, *KeyStart = NULL;
   
-  if (!Buffer)
+  if (unlikely(!Buffer))
     Error("[ERROR]: Unable to allocate Buffer during AddNewUser call.", ERR_MEMORY);
   
   sprintf(Buffer, NEW_USER, UserId, Name, URL);
@@ -76,7 +76,7 @@ int8_t AddNewUser(char *UserId, char *Name, char *URL) {
   memcpy(Prefix + strlen(Prefix), RegistryFileName, RegFileLen + 1);
   UserRegistry = fopen(Prefix, "r+");
 
-  if (!UserRegistry) {
+  if (unlikely(!UserRegistry)) {
     Error("[ERROR]: Unable to open registry file.", ERR_STANDARD | ERR_NOEXIT);
     goto error;
   }
@@ -87,7 +87,7 @@ int8_t AddNewUser(char *UserId, char *Name, char *URL) {
   
   RegFileContent = malloc((RegFileContentSize + NewBufferLen + 1) * sizeof(char));
   
-  if (!RegFileContent)
+  if (unlikely(!RegFileContent))
     Error("[ERROR]: Unable to allocate RegFileContent during AddNewUser call.", ERR_MEMORY);
   
   fread(RegFileContent, sizeof(char), RegFileContentSize, UserRegistry);
@@ -95,14 +95,14 @@ int8_t AddNewUser(char *UserId, char *Name, char *URL) {
 
   KeyStart = strstr(RegFileContent, KeyLocation);
 
-  if (!KeyStart) {
+  if (unlikely(!KeyStart)) {
     Error("[ERROR]: Unable to find the KeyStart in registry.", ERR_STANDARD | ERR_NOEXIT);
     goto error;
   }
   
   /* Hope we don't hit the wrong key.. */
   KeyStart = strstr(KeyStart, "users");
-  if (!KeyStart) {
+  if (unlikely(!KeyStart)) {
     Error("[ERROR]: Unable to find users sub-key.", ERR_STANDARD | ERR_NOEXIT);
     goto error;
   }
@@ -113,7 +113,7 @@ int8_t AddNewUser(char *UserId, char *Name, char *URL) {
   
   KeyContent = malloc((OldKeyLen + NewBufferLen + 1) * sizeof(char));
   
-  if (!KeyContent)
+  if (unlikely(!KeyContent))
     Error("[ERROR]: Unable to allocate KeyContent during AddNewUser call.", ERR_MEMORY);
   
   memcpy(KeyContent, KeyStart, OldKeyLen);
@@ -194,7 +194,7 @@ int8_t SetupProton(uint8_t CheckExistence) {
   /* Open file and download it. */
   TarFile = fopen(Path, "w");
   
-  if (!TarFile) {
+  if (unlikely(!TarFile)) {
     Error("[ERROR]: Failed to open TarFile which is required to download proton.", ERR_STANDARD | ERR_NOEXIT);
     goto error;
   }
@@ -202,7 +202,7 @@ int8_t SetupProton(uint8_t CheckExistence) {
   Response = CurlDownload(TarFile, PROTON_LINK);
   // Response = CURLE_OK;
 
-  if (Response != CURLE_OK) {
+  if (unlikely(Response != CURLE_OK)) {
     Error("[ERROR]: Failed to download the tar file.", ERR_STANDARD | ERR_NOEXIT);
     Error((char*)curl_easy_strerror(Response), ERR_STANDARD | ERR_NOEXIT);
     goto error;
@@ -262,13 +262,13 @@ int8_t SetupPrefix() {
   
   /* Install required dlls for studio to launch. Check status values. */
   Status = system("winetricks d3dx11_43");
-  if (Status == -1) {
+  if (unlikely(Status == -1)) {
     Error("[FATAL]: winetricks failed to install d3dx11_43. Please try to manually install the component.", ERR_STANDARD | ERR_NOEXIT);
     goto error;
   }
   
   Status = system("winetricks dxvk");
-  if (Status == -1) {
+  if (unlikely(Status == -1)) {
     Error("[FATAL]: winetricks failed to install dxvk. Please try to manually install the component.", ERR_STANDARD | ERR_NOEXIT);
     goto error;
   }
@@ -276,7 +276,7 @@ int8_t SetupPrefix() {
   /* Studio works only with DPI 98 for whatever reason. 
    * 0x62 is the hexadecimal value of 98. */
   Status = system("wine reg add \"HKEY_CURRENT_USER\\Control Panel\\Desktop\" /v LogPixels /t REG_DWORD /d 0x62 /f");
-  if (Status == -1) {
+  if (unlikely(Status == -1)) {
     Error("[FATAL]: Failed to modify prefix registry. Please try to manually change dpi to 98.\n", ERR_STANDARD | ERR_NOEXIT);
     goto error;
   }
@@ -307,7 +307,7 @@ void Run(char *Argument, char *Version) {
   }
   
   if (DEBUG_ENTRY) {
-    if (strcmp(DEBUG_ENTRY, "true"))
+    if (strcmp(DEBUG_ENTRY, "true") == 0)
       EXTRA_CMD = "& disown";
   }
 
@@ -322,9 +322,9 @@ void Run(char *Argument, char *Version) {
   char *Command = malloc((WineLen + ArgLen + ExecPathLen + ExtraCmdLen + 2 + 3) * sizeof(char));
   char *Executable = malloc(ExecPathLen * sizeof(char));
   
-  if (!Command)
+  if (unlikely(!Command))
     Error("[FATAL]: Unable to allocate Command buffer during Run call.", ERR_MEMORY);
-  else if (!Executable)
+  else if (unlikely(!Executable))
     Error("[FATAL]: Unable to allocate Executable buffer during Run call.", ERR_MEMORY);
 
   memcpy(Executable, getenv("HOME"), HomeLength);

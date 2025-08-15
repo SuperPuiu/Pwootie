@@ -59,7 +59,7 @@ int8_t InstallPackages(FetchStruct *Fetched, char *Version) {
   /* Download installer in TEMP_PWOOTIE_FOLDER folder. */
   Installer = fopen(Official, "w+");
 
-  if (!Installer) {
+  if (unlikely(!Installer)) {
     Error("[ERROR]: Unable to create RobloxStudioInstaller file during InstallPackages call.", ERR_STANDARD | ERR_NOEXIT);
     Error(Official, ERR_STANDARD | ERR_NOEXIT);
     return -1;
@@ -67,7 +67,7 @@ int8_t InstallPackages(FetchStruct *Fetched, char *Version) {
   
   Response = CurlDownload(Installer, FullURL);
 
-  if (Response != CURLE_OK) {
+  if (unlikely(Response != CURLE_OK)) {
     Error("[ERROR]: Failed to download RobloxStudioInstaller.exe.\n", ERR_STANDARD | ERR_NOEXIT);
     Error((char*)curl_easy_strerror(Response), ERR_STANDARD | ERR_NOEXIT);
     return -1;
@@ -126,7 +126,7 @@ int8_t InstallPackages(FetchStruct *Fetched, char *Version) {
     char *Memory;
     FILE *NewFile;
     
-    if (!ZipStat) {
+    if (unlikely(!ZipStat)) {
       char Buffer[5];
       sprintf(Buffer, "%i", i);
 
@@ -142,7 +142,7 @@ int8_t InstallPackages(FetchStruct *Fetched, char *Version) {
 
     ZipPointer = zip_open(Official, 0, &ErrorCode);
 
-    if (!ZipPointer) {
+    if (unlikely(!ZipPointer)) {
       zip_error_init_with_code(&ZipError, ErrorCode);
       Error("[FATAL]: Unable to open one of the zip files.", ERR_STANDARD | ERR_NOEXIT);
       Error(Official, ERR_STANDARD | ERR_NOEXIT);
@@ -160,7 +160,7 @@ int8_t InstallPackages(FetchStruct *Fetched, char *Version) {
       uint32_t NameLength = strlen(Name);
       uint8_t Directory;
 
-      if (!Name) {
+      if (unlikely(!Name)) {
         char Buffer[32];
         sprintf(Buffer, "%li", Entry);
 
@@ -187,14 +187,14 @@ int8_t InstallPackages(FetchStruct *Fetched, char *Version) {
       zip_stat_index(ZipPointer, Entry, 0, ZipStat);
       Memory = calloc(ZipStat->size, sizeof(char));
       
-      if (!Memory)
+      if (unlikely(!Memory))
         Error("[FATAL]: Unable to allocate Memory variable during InstallPackages call.", ERR_MEMORY);
       
       /* Include string terminator. */
       memcpy(InstallDir + HomeLength + InstallDirLength + InstructionLength + LengthVersion + 3, Name, NameLength + 1);
       NewFile = fopen(InstallDir, "wb");
       
-      if (!NewFile) {
+      if (unlikely(!NewFile)) {
         Error("[ERROR]: Unable to open a file to write contents.", ERR_STANDARD | ERR_NOEXIT);
         Error(InstallDir, ERR_STANDARD | ERR_NOEXIT);
         return -1;
@@ -246,9 +246,9 @@ int8_t DownloadPackages(FetchStruct *Fetched, char *Version) {
   char *FullURL = malloc((LengthURL + LengthVersion + Fetched->LongestName + 2) * sizeof(char));
   char *ZipFilePath = malloc((RootPartLength + Fetched->LongestName + 2) * sizeof(char));
 
-  if (!FullURL)
+  if (unlikely(!FullURL))
     Error("[FATAL]: Failed to allocate memory for FullURL during DownloadPackages call.", ERR_MEMORY);
-  else if (!ZipFilePath)
+  else if (unlikely(!ZipFilePath))
     Error("[FATAL]: Failed to allocate memory for ZipFilePath during DownloadPackages call.", ERR_MEMORY);
   
   memcpy(ZipFilePath, TEMP_PWOOTIE_FOLDER, RootPartLength);
@@ -260,7 +260,7 @@ int8_t DownloadPackages(FetchStruct *Fetched, char *Version) {
 
   /* Create a temp folder for downloads. 
    * The installer function cleans it once installation finishes.*/
-  if (mkdir(TEMP_PWOOTIE_FOLDER, 0755) && errno != EEXIST) {
+  if (unlikely(mkdir(TEMP_PWOOTIE_FOLDER, 0755) && errno != EEXIST)) {
     Error("[FATAL]: Failed to create new directory within /tmp/.", ERR_STANDARD | ERR_NOEXIT);
     return -1;
   }
@@ -285,13 +285,13 @@ int8_t DownloadPackages(FetchStruct *Fetched, char *Version) {
       uint8_t   Checksum[16];
       char      ChecksumBuf[33];
       
-      if (!ZipFile) {
+      if (unlikely(!ZipFile)) {
         Error("[FATAL]: Unable to open a zip file.", ERR_STANDARD | ERR_NOEXIT);
         Error(ZipFilePath, ERR_STANDARD | ERR_NOEXIT);
         goto error;
       }
 
-      if (Response != CURLE_OK) {
+      if (unlikely(Response != CURLE_OK)) {
         printf("\n[ATTEMPT %i]: Failed to download %s. (%s)\n", Attempts, Fetched->PackageList[Index].Name, curl_easy_strerror(Response));
         continue;
       }
@@ -300,7 +300,7 @@ int8_t DownloadPackages(FetchStruct *Fetched, char *Version) {
       md5File(ZipFile, Checksum);
       ChecksumToString(Checksum, ChecksumBuf);
 
-      if (strcmp(ChecksumBuf, Fetched->PackageList[Index].Checksum) != 0) {
+      if (unlikely(strcmp(ChecksumBuf, Fetched->PackageList[Index].Checksum) != 0)) {
         printf("\n[ATTEMPT %i]: Checksum is not matching normal %s checksum.\n", Attempts, Fetched->PackageList[Index].Name);
         fclose(ZipFile);
         continue;
@@ -309,7 +309,7 @@ int8_t DownloadPackages(FetchStruct *Fetched, char *Version) {
       Downloaded = 1;
     }
 
-    if (Downloaded) {
+    if (likely(Downloaded)) {
       printf("[INFO]: Downloaded package %i out of %i.\r", Index + 1, Fetched->TotalPackages);
       fflush(stdout);
     } else {
@@ -340,9 +340,9 @@ FetchStruct* FetchPackages(char *Version) {
   Package *PackagesData = malloc(sizeof(Package) * PackageArraySize);
   FetchStruct *ReturnStruct = malloc(sizeof(FetchStruct));
 
-  if (!PackagesData)
+  if (unlikely(!PackagesData))
     Error("[FATAL]: Failed to allocate PackagesData within GetPackages call.", ERR_MEMORY);
-  else if (!ReturnStruct)
+  else if (unlikely(!ReturnStruct))
     Error("[FATAL]: Failed to allocate ReturnStruct within GetPackages call.", ERR_MEMORY);
   
   ManifestContent.Memory = malloc(1);
@@ -351,7 +351,7 @@ FetchStruct* FetchPackages(char *Version) {
   /* Get the manifest containing all the packages information needed. */
   CURLcode Response = CurlGet(&ManifestContent, (char*)FullURL);
 
-  if (Response != CURLE_OK) {
+  if (unlikely(Response != CURLE_OK)) {
     Error("[ERROR]: GetPackages call failed to download the Manifest file.", ERR_STANDARD | ERR_NOEXIT);
     Error((char*)curl_easy_strerror(Response), ERR_STANDARD | ERR_NOEXIT);
     goto error;
@@ -370,7 +370,7 @@ FetchStruct* FetchPackages(char *Version) {
       PackageArraySize *= 2;
       Package *l_PackagesData = realloc(PackagesData, sizeof(Package) * PackageArraySize);
       
-      if (!l_PackagesData) {
+      if (unlikely(!l_PackagesData)) {
         Error("[ERROR]: Unable to reallocate PackagesData from GetPackages function.", ERR_STANDARD | ERR_NOEXIT);
         goto error;
       }

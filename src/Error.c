@@ -33,23 +33,23 @@ void Error(char *String, uint8_t Flags) {
 
   FILE *Debug = fopen(Path, "a");
   
-  if (!Debug)
+  if (unlikely(!Debug))
     Debug = fopen(Path, "w");
   
-  if (!Debug) {
+  if (unlikely(!Debug)) {
     printf(ANSI_COLOR_RED "[FATAL]: Unable to open the Pwootie log. (strerror: %s)\n" ANSI_COLOR_RESET, strerror(errno));
     goto Out;
   }
 
   fprintf(Debug, STANDARD_FORMAT, Time, String);
 
-  if (l_Errno != 0)
+  if (likely(l_Errno != 0))
     fprintf(Debug, STANDARD_FORMAT, Time, strerror(l_Errno));
 
 Out:
   printf(ANSI_COLOR_RED STANDARD_FORMAT ANSI_COLOR_RESET, Time, String);
   
-  if (l_Errno != 0)
+  if (likely(l_Errno != 0))
     printf(ANSI_COLOR_RED STANDARD_FORMAT ANSI_COLOR_RESET, Time, strerror(l_Errno));
   
   errno = 0;

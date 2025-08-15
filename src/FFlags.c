@@ -58,7 +58,7 @@ int8_t CreateFFlags(char *Version, char *OldVersion) {
   FFlagsFile = fopen(FFlagsPath, "r");
   FileDestination = fopen(DestinationPath, "w");
 
-  if (!FFlagsFile) {
+  if (FFlagsFile) {
     Error("[ERROR]: Unable to open FFlagsFile file.", ERR_STANDARD | ERR_NOEXIT);
     Error(FFlagsPath, ERR_STANDARD | ERR_NOEXIT);
     
@@ -69,14 +69,14 @@ int8_t CreateFFlags(char *Version, char *OldVersion) {
       FFlagsPath = BuildString(5, getenv("HOME"), "/", INSTALL_DIR, "/", DEFAULT_SETTINGS_PATH);
       FFlagsFile = fopen(FFlagsPath, "r");
       
-      if (!FFlagsFile) {
+      if (unlikely(!FFlagsFile)) {
         Error("[ERROR]: Unable to open the default fastflags file.\n", ERR_STANDARD | ERR_NOEXIT);
         goto error;
       }
     } else {
       goto error;
     }
-  } else if (!FileDestination) {
+  } else if (unlikely(!FileDestination)) {
     Error("[ERROR]: Unable to open FileDestination file.", ERR_STANDARD | ERR_NOEXIT);
     Error(DestinationPath, ERR_STANDARD | ERR_NOEXIT);
     goto error;
@@ -86,7 +86,7 @@ int8_t CreateFFlags(char *Version, char *OldVersion) {
   FileSize = ftell(FFlagsFile);
   Buffer = malloc(FileSize * sizeof(char));
 
-  if (!Buffer)
+  if (unlikely(!Buffer))
     Error("[FATAL]: Unable to allocate Buffer during CreateFFlags call.\n", ERR_MEMORY);
 
   fseek(FFlagsFile, 0, SEEK_SET);
@@ -131,7 +131,7 @@ char *ReadFFlag(char *EntryName) {
  * Not to be confused with ReadFFlag() which returns a string on the first substring found.
  * @return -1 on failure and 0 on success. */
 int8_t OutputFFlags(char *EntryName) {
-  if (isalpha(EntryName[0]) == 0) {
+  if (unlikely(isalpha(EntryName[0]) == 0)) {
     printf("[ERROR]: The name must not contain any special characters.\n");
     return -1; /* You know what you did. */
   }
@@ -178,12 +178,12 @@ int8_t LoadFFlags(char *Version) {
 
   FileDescriptor = open(Path, O_RDWR);
 
-  if (FileDescriptor == -1) {
+  if (unlikely(FileDescriptor == -1)) {
     Error("[ERROR]: LoadFFlags failed to initialize FileDescriptor.", ERR_STANDARD | ERR_NOEXIT);
     goto error;
   }
   
-  if (fstat(FileDescriptor, &SettingsStat) == -1) {
+  if (unlikely(fstat(FileDescriptor, &SettingsStat) == -1)) {
     Error("[ERROR]: fstat failed during LoadFFlags call.", ERR_STANDARD | ERR_NOEXIT);
     goto error;
   }

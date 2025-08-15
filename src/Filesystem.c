@@ -16,7 +16,7 @@ int8_t BuildDirectoryTree(char *Path) {
   while (Separated != NULL) {
     *Separated = '\0';
 
-    if (mkdir(Path, 0755) && errno != EEXIST) {
+    if (unlikely(mkdir(Path, 0755) && errno != EEXIST)) {
       Error("[FATAL]: Mkdir failed during BuildDirectoryTree call.", ERR_STANDARD | ERR_NOEXIT);
       Error(Path, ERR_STANDARD | ERR_NOEXIT);
       return -1;
@@ -70,7 +70,7 @@ char *BuildString(uint8_t Elements, ...) {
   va_start(Arguments, Elements);
   Str = malloc(Size * sizeof(char));
   
-  if (!Str)
+  if (unlikely(!Str))
     Error("[FATAL]: Failed to allocate new string memory during BuildString call.\n", ERR_MEMORY);
 
   for (uint8_t Arg = 0; Arg < Elements; Arg++) {

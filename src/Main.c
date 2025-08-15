@@ -8,7 +8,7 @@ int main(int argc, char **argv) {
 
   SetupHandles();
   GetVersionData(&Data);
-  
+
   char *StudioVersion = Data.ClientVersionUpload;
   char *ForcedVersion = PwootieReadEntry("forced_version");
   
