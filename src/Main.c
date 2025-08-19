@@ -67,7 +67,7 @@ int main(int argc, char **argv) {
       }
 
       goto exit;
-    } else if (strcmp(argv[2], "cookie") == 0) {
+    } else if (strcmp(argv[1], "cookie") == 0) {
       if (strcmp(argv[3], "read") == 0) {
 
       } else if (strcmp(argv[3], "write") == 0) {
