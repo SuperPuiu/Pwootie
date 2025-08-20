@@ -2,6 +2,7 @@
 
 int main(int argc, char **argv) {
   OpenPwootieFile();
+  SetupSignalHandler();
   curl_global_init(CURL_GLOBAL_ALL);
 
   VersionData Data = {NULL, NULL, NULL};

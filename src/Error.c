@@ -5,6 +5,8 @@
 #include <errno.h>
 #include <time.h>
 
+#include <signal.h>
+
 /* TODO: https://unix.stackexchange.com/questions/104936/where-are-all-the-posibilities-of-storing-a-log-file */
 #define ANSI_COLOR_RED     "\x1b[31m"
 #define ANSI_COLOR_RESET   "\x1b[0m"
@@ -32,10 +34,10 @@ void Error(char *String, uint8_t Flags) {
   Path[HomeLength + Locationlength] = '\0';
 
   FILE *Debug = fopen(Path, "a");
-  
+
   if (unlikely(!Debug))
     Debug = fopen(Path, "w");
-  
+
   if (unlikely(!Debug)) {
     printf(ANSI_COLOR_RED "[FATAL]: Unable to open the Pwootie log. (strerror: %s)\n" ANSI_COLOR_RESET, strerror(errno));
     goto Out;
@@ -48,13 +50,36 @@ void Error(char *String, uint8_t Flags) {
 
 Out:
   printf(ANSI_COLOR_RED STANDARD_FORMAT ANSI_COLOR_RESET, Time, String);
-  
+
   if (likely(l_Errno != 0))
     printf(ANSI_COLOR_RED STANDARD_FORMAT ANSI_COLOR_RESET, Time, strerror(l_Errno));
-  
+
   errno = 0;
   free(Path);
 
   if (~Flags & ERR_NOEXIT || Flags & ERR_MEMORY)
     exit(EXIT_FAILURE);
+}
+
+void l_SegFaultHandler(int _, siginfo_t *__, void *___) {
+  PwootieExit();
+
+  /* funny */
+  unused(_);
+  unused(__);
+  unused(___);
+
+  exit(EXIT_FAILURE);
+}
+
+void SetupSignalHandler() {
+  struct sigaction SignalAction;
+
+  memset(&SignalAction, 0, sizeof(sigaction));
+  sigemptyset(&SignalAction.sa_mask);
+
+  SignalAction.sa_flags     = SA_NODEFER;
+  SignalAction.sa_sigaction = l_SegFaultHandler;
+
+  sigaction(SIGSEGV, &SignalAction, NULL); /* ignore whether it works or not */ 
 }

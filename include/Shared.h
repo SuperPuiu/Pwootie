@@ -88,6 +88,7 @@ char **ExtractInstructions(FILE *Installer, FetchStruct *Fetched);
 
 /* Error.c */
 void Error(char *String, uint8_t Flags);
+void SetupSignalHandler();
 
 /* CurlWrappers.c */
 void SetupHandles();
