@@ -36,7 +36,7 @@ int8_t CreateFFlags(char *Version, char *OldVersion) {
   if (!OldVersion)
     FFlagsPath = BuildString(5, getenv("HOME"), "/", INSTALL_DIR, "/", DEFAULT_SETTINGS_PATH);
   else
-    FFlagsPath = BuildString(7, getenv("HOME"), "/", INSTALL_DIR, "/", OldVersion, "/", VERSION_SETTINGS_PATH);
+    FFlagsPath = BuildString(6, getenv("HOME"), "/", INSTALL_DIR, OldVersion, "/", VERSION_SETTINGS_PATH);
 
   char *DestinationPath = BuildString(7, getenv("HOME"), "/", INSTALL_DIR, "/", Version, "/", VERSION_SETTINGS_PATH);
   char *Buffer = NULL;
