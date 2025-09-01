@@ -1,11 +1,13 @@
 #ifndef __UTIL_H__
 #define __UTIL_H__
+#define _XOPEN_SOURCE 700
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
 #include <curl/curl.h>
+#include <ftw.h>
 
 /* https://stackoverflow.com/questions/1668013/can-likely-unlikely-macros-be-used-in-user-space-code */
 #ifdef __GNUC__
@@ -67,6 +69,7 @@ int8_t Install(char *Version, uint8_t CheckVersion);
 void ReplacePathSlashes(char *Path);
 int8_t BuildDirectoryTree(char *Path);
 uint64_t QueryDiskSpace();
+int32_t DeleteFile(const char *pathname, const struct stat *sbuf, int32_t type, struct FTW *ftwb);
 char *BuildString(uint8_t Elements, ...);
 
 /* Wine.c */
@@ -91,9 +94,13 @@ void Error(char *String, uint8_t Flags);
 void SetupSignalHandler();
 
 /* CurlWrappers.c */
-void SetupHandles();
-CURLcode    CurlDownload(FILE *File, char *WithURL);
-CURLcode    CurlGet(MemoryStruct *Chunk, char *WithURL);
+void          SetupHandles();
+void          ResetMultiCurl(uint16_t Total);
+int32_t       CurlGetHandleFromMessage(CURLMsg *Message);
+int8_t        CurlMultiSetup(FILE **Files, char **Links, uint16_t Total);
+CURLcode      CurlDownload(FILE *File, char *WithURL);
+CURLcode      CurlGet(MemoryStruct *Chunk, char *WithURL);
+extern CURLM  *CurlMulti;
 
 /* FFlags.c */
 int8_t  ApplyFFlag(char *EntryName, char *Data);
