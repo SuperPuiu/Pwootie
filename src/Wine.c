@@ -261,23 +261,15 @@ int8_t SetupPrefix() {
   setenv(WINEPREFIX, Location, 1);
   
   /* Install required dlls for studio to launch. Check status values. */
-  Status = system("winetricks d3dx11_43");
+  Status = system("winetricks d3dx11_43 > /dev/null 2>&1");
   if (unlikely(Status == -1)) {
     Error("[FATAL]: winetricks failed to install d3dx11_43. Please try to manually install the component.", ERR_STANDARD | ERR_NOEXIT);
     goto error;
   }
   
-  Status = system("winetricks dxvk");
+  Status = system("winetricks dxvk > /dev/null 2>&1");
   if (unlikely(Status == -1)) {
     Error("[FATAL]: winetricks failed to install dxvk. Please try to manually install the component.", ERR_STANDARD | ERR_NOEXIT);
-    goto error;
-  }
-  
-  /* Studio works only with DPI 98 for whatever reason. 
-   * 0x62 is the hexadecimal value of 98. */
-  Status = system("wine reg add \"HKEY_CURRENT_USER\\Control Panel\\Desktop\" /v LogPixels /t REG_DWORD /d 0x62 /f");
-  if (unlikely(Status == -1)) {
-    Error("[FATAL]: Failed to modify prefix registry. Please try to manually change dpi to 98.\n", ERR_STANDARD | ERR_NOEXIT);
     goto error;
   }
 
@@ -293,7 +285,7 @@ void Run(char *Argument, char *Version) {
   if (Argument == NULL)
     Argument = "";
   
-  /* Yeah well I can't put it next to the other char arrays. */
+  /* Yeah well I can't put them next to the other char arrays. */
   char *WINE_EXEC = PwootieReadEntry("wine_binary");
   char *DEBUG_ENTRY = PwootieReadEntry("debug");
   char *EXTRA_CMD = " > /dev/null 2>&1 & disown";
@@ -343,7 +335,6 @@ void Run(char *Argument, char *Version) {
 
   /* Apparently system() can have some security vulnerabilities? eh? */
   setenv(WINEPREFIX, Location, 1);
-  printf("%s\n", Command);
   system(Command);
 
   free(Executable);
