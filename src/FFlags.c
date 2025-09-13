@@ -30,13 +30,13 @@ int8_t ApplyFFlag(char *EntryName, char *Data) {
  * OldVersion can be NULL, which will cause CreateFFlags to use the DEFAULT_SETTINGS_PATH variable.
  * @return 0 on success and -1 on failure. */
 int8_t CreateFFlags(char *Version, char *OldVersion) {
-  FILE *FFlagsFile, *FileDestination;
+  FILE *FFlagsFile = NULL, *FileDestination = NULL;
   char *FFlagsPath;
 
   if (!OldVersion)
     FFlagsPath = BuildString(5, getenv("HOME"), "/", INSTALL_DIR, "/", DEFAULT_SETTINGS_PATH);
   else
-    FFlagsPath = BuildString(6, getenv("HOME"), "/", INSTALL_DIR, OldVersion, "/", VERSION_SETTINGS_PATH);
+    FFlagsPath = BuildString(7, getenv("HOME"), "/", INSTALL_DIR, "/", OldVersion, "/", VERSION_SETTINGS_PATH);
 
   char *DestinationPath = BuildString(7, getenv("HOME"), "/", INSTALL_DIR, "/", Version, "/", VERSION_SETTINGS_PATH);
   char *Buffer = NULL;
@@ -58,7 +58,7 @@ int8_t CreateFFlags(char *Version, char *OldVersion) {
   FFlagsFile = fopen(FFlagsPath, "r");
   FileDestination = fopen(DestinationPath, "w");
 
-  if (FFlagsFile) {
+  if (!FFlagsFile) {
     Error("[ERROR]: Unable to open FFlagsFile file.", ERR_STANDARD | ERR_NOEXIT);
     Error(FFlagsPath, ERR_STANDARD | ERR_NOEXIT);
     
