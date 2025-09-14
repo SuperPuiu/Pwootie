@@ -20,7 +20,6 @@
 
 /* CDN stands for Content Delivery Network */
 #define PACKAGE_MANIFEST    "-rbxPkgManifest.txt"
-#define CDN_URL             "https://setup.rbxcdn.com/"
 #define CLIENT_SETTINGS_URL "https://clientsettingscdn.roblox.com/v2/client-version/WindowsStudio64" 
 #define TEMP_PWOOTIE_FOLDER "/tmp/pwootie/"
 #define PWOOTIE_DATA        "PwootieData.txt"
@@ -109,5 +108,8 @@ int8_t  OutputFFlags(char *EntryName);
 int8_t  LoadFFlags(char *Version);
 int8_t  CreateFFlags(char *Version, char *OldVersion);
 char    *ReadFFlag(char *EntryName);
+
+/* Main.c */
+extern char *CDN_URL;
 
 #endif

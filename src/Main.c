@@ -1,5 +1,7 @@
 #include <Shared.h>
 
+char *CDN_URL = "https://setup.rbxcdn.com/";
+
 int main(int argc, char **argv) {
   OpenPwootieFile();
   SetupSignalHandler();
@@ -12,9 +14,12 @@ int main(int argc, char **argv) {
 
   char *StudioVersion = Data.ClientVersionUpload;
   char *ForcedVersion = PwootieReadEntry("forced_version");
-  
+  char *ForcedCDN     = PwootieReadEntry("cdn");
+
   /* If we have a ForcedVersion, then use that. */
   StudioVersion = ForcedVersion ? ForcedVersion : StudioVersion;
+  
+  CDN_URL = ForcedCDN ? ForcedCDN : CDN_URL;
 
   if (argc > 1) {
     if (strcmp(argv[1], "reinstall") == 0) {
@@ -112,6 +117,9 @@ exit:
   
   if (ForcedVersion)
     free(ForcedVersion);
+
+  if (ForcedCDN)
+    free(ForcedCDN);
 
   curl_global_cleanup();
   PwootieExit();
