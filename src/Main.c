@@ -69,9 +69,9 @@ int main(int argc, char **argv) {
 
       goto exit;
     } else if (strcmp(argv[1], "cookie") == 0) {
-      if (strcmp(argv[3], "read") == 0) {
+      if (strcmp(argv[2], "read") == 0) {
 
-      } else if (strcmp(argv[3], "write") == 0) {
+      } else if (strcmp(argv[2], "write") == 0) {
         if (argc < 3) {
           printf("[INFO]: Command 'cookie write' called with wrong number of arguments. (cookie is required)\n");
           goto exit;
@@ -80,6 +80,14 @@ int main(int argc, char **argv) {
         goto exit;
       } else {
         printf("[INFO]: No cookie option specified. (available options: read, write)\n");
+        goto exit;
+      }
+    } else if (strcmp(argv[1], "wine") == 0) {
+      if (strcmp(argv[2], "config") == 0) {
+        RunWineCfg();
+        goto exit;
+      } else {
+        printf("[INFO]: Unknown wine option specified (available options: config)");
         goto exit;
       }
     }

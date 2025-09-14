@@ -1,18 +1,13 @@
 #define _GNU_SOURCE
 
-#define PREFIX      "prefix"
-#define WINEPREFIX  "WINEPREFIX"
-#define EXECUTABLE  "RobloxStudioBeta.exe"
-#define PROTON_DIR  "proton"
-#define PROTON_NAME "wine-proton-10.0-1-amd64.tar.xz"
-#define PROTON_LINK "https://github.com/Kron4ek/Wine-Builds/releases/download/proton-10.0-2/wine-proton-10.0-2-amd64.tar.xz"
-#define NEW_USER    "{\\\"%s\\\":{\\\"username\\\":\\\"%s\\\",\\\"profilePicUrl\\\":\\\"%s\\\"}};"
-
 #include <sys/stat.h>
 #include <Shared.h>
 #include <errno.h>
 
 #include <unistd.h>
+
+static const char *PREFIX = "prefix";
+static const char *WINEPREFIX = "WINEPREFIX";
 
 /* GetPrefixPath() returns the built prefix path. Allows for ExtraBytes to be allocated by passing a number argument.
  * @return always a char array. */
@@ -44,6 +39,8 @@ char *GetPrefixPath(uint32_t ExtraBytes) {
  *
  * @return 0 on success and -1 on failure.*/
 int8_t AddNewUser(char *UserId, char *Name, char *URL) {
+  const char *NEW_USER = "{\\\"%s\\\":{\\\"username\\\":\\\"%s\\\",\\\"profilePicUrl\\\":\\\"%s\\\"}};";
+
   char *StrtolEndChar = NULL;
   strtol(UserId, &StrtolEndChar, 10);
   
@@ -153,6 +150,10 @@ error:
 /* SetupProton() is tasked with downloading and extracting proton.
  * @return -1 on failure and 0 on success. */
 int8_t SetupProton(uint8_t CheckExistence) {
+  const char *PROTON_NAME = "wine-proton-10.0-1-amd64.tar.xz";
+  const char *PROTON_LINK = "https://github.com/Kron4ek/Wine-Builds/releases/download/proton-10.0-2/wine-proton-10.0-2-amd64.tar.xz";
+  const char *PROTON_DIR = "proton";
+
   printf("[INFO]: Setting up proton.\n");
 
   /* Unfortunately for me, the file is a tar.xz, which means that I'd either have to 
@@ -199,7 +200,7 @@ int8_t SetupProton(uint8_t CheckExistence) {
     goto error;
   }
 
-  Response = CurlDownload(TarFile, PROTON_LINK);
+  Response = CurlDownload(TarFile, (char*)PROTON_LINK);
   // Response = CURLE_OK;
 
   if (unlikely(Response != CURLE_OK)) {
@@ -281,7 +282,48 @@ error:
   return -1;
 }
 
+void RunWineCfg() {
+  uint32_t WineExecLen;
+
+  char *Prefix = GetPrefixPath(0);
+  char *WineExec = PwootieReadEntry("wine_binary");
+  char *Command;
+
+  if (!WineExec) {
+    PwootieWriteEntry("wine_binary", "wine");
+    WineExec = malloc((strlen("wine") + 1) * sizeof(char));
+    
+    if (!WineExec)
+      Error("[FATAL]: Unable to allocate memory for WINE_EXEC.", ERR_MEMORY);
+  }
+
+  WineExecLen = strlen(WineExec);
+  Command = malloc(sizeof(char) * (WineExecLen + 1 + strlen("cfg")));
+
+  if (!Command)
+    Error("[FATAL]: Unable to reallocate Command during RunWineCfg call.", ERR_MEMORY);
+  
+  memcpy(Command, WineExec, WineExecLen);
+
+  for (uint32_t SrcIndex = WineExecLen; SrcIndex > 0; SrcIndex--) {
+    if (Command[SrcIndex] != 'e')
+      continue;
+
+    memcpy(Command + SrcIndex + 1, "cfg", 4);
+    break;
+  }
+
+  setenv(WINEPREFIX, Prefix, 1);
+  system(Command);
+
+  free(Command);
+  free(Prefix);
+  free(WineExec);
+}
+
 void Run(char *Argument, char *Version) {
+  const char *EXECUTABLE ="RobloxStudioBeta.exe";
+
   if (Argument == NULL)
     Argument = "";
   
