@@ -150,7 +150,7 @@ error:
 /* SetupProton() is tasked with downloading and extracting proton.
  * @return -1 on failure and 0 on success. */
 int8_t SetupProton(uint8_t CheckExistence) {
-  const char *PROTON_NAME = "wine-proton-10.0-1-amd64.tar.xz";
+  const char *PROTON_NAME = "wine-proton-10.0-2-amd64.tar.xz";
   const char *PROTON_LINK = "https://github.com/Kron4ek/Wine-Builds/releases/download/proton-10.0-2/wine-proton-10.0-2-amd64.tar.xz";
   const char *PROTON_DIR = "proton";
 
