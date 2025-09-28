@@ -72,11 +72,11 @@ int32_t DeleteFile(const char *pathname, const struct stat *sbuf, int32_t type, 
 char *BuildString(uint8_t Elements, ...);
 
 /* Wine.c */
-int8_t SetupPrefix();
-int8_t SetupProton(uint8_t CheckExistence);
-int8_t AddNewUser(char *UserId, char *Name, char *URL);
-void RunWineCfg();
-void Run(char *Argument, char *Version);
+int8_t  SetupPrefix();
+int8_t  SetupWine(uint8_t CheckExistence);
+int8_t  AddNewUser(char *UserId, char *Name, char *URL);
+void    RunWineCfg();
+void    Run(char *Argument, char *Version);
 
 /* Pwootie.c */
 extern FILE* PwootieFile;
@@ -108,6 +108,7 @@ int8_t  OutputFFlags(char *EntryName);
 int8_t  LoadFFlags(char *Version);
 int8_t  CreateFFlags(char *Version, char *OldVersion);
 char    *ReadFFlag(char *EntryName);
+void    ExitFFlags();
 
 /* Main.c */
 extern char *CDN_URL;
