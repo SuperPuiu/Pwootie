@@ -24,16 +24,16 @@ int main(int argc, char **argv) {
   if (argc > 1) {
     if (strcmp(argv[1], "reinstall") == 0) {
       if (argc < 3) {
-        printf("[INFO]: No reinstall option specified. You must either specify proton or studio to be reinstalled.\n");
+        printf("[INFO]: No reinstall option specified. You must either specify wine or studio to be reinstalled.\n");
         goto exit;
       }
 
-      if (strcmp(argv[2], "proton") == 0)
-        SetupProton(0);
+      if (strcmp(argv[2], "wine") == 0)
+        SetupWine(0);
       else if (strcmp(argv[2], "studio") == 0)
         Install(StudioVersion, 0);
       else
-        printf("[INFO]: Unknown reinstall option. (available options: proton, studio)\n");
+        printf("[INFO]: Unknown reinstall option. (available options: wine, studio)\n");
       
       goto exit;
     } else if (strcmp(argv[1], "fflags") == 0) {
@@ -42,17 +42,23 @@ int main(int argc, char **argv) {
         goto exit;
       }
       
-      if (argc == 2) {
+      if (argc < 4) {
         printf("[INFO]: fflags require one or more parameters. See the documentation for more information.\n");
         goto exit;
       }
       
-      if (strcmp(argv[2], "apply") == 0)
+      if (strcmp(argv[2], "apply") == 0) {
+        if (argc < 5) {
+          printf("[INFO]: Apply requires two parameters, that being <Name> and <Option>.\n");
+          goto exit;
+        }
+
         ApplyFFlag(argv[3], argv[4]);
-      else if (strcmp(argv[2], "read") == 0)
+      } else if (strcmp(argv[2], "read") == 0) {
         OutputFFlags(argv[3]);
-      else
+      } else {
         printf("[INFO]: Unknown fflags option. (available options: apply, read)\n");
+      }
 
       goto exit;
     } else if (strcmp(argv[1], "user") == 0) {
@@ -92,7 +98,7 @@ int main(int argc, char **argv) {
         RunWineCfg();
         goto exit;
       } else {
-        printf("[INFO]: Unknown wine option specified (available options: config)");
+        printf("[INFO]: Unknown wine option specified (available options: config)\n");
         goto exit;
       }
     }
@@ -123,5 +129,6 @@ exit:
 
   curl_global_cleanup();
   PwootieExit();
+  ExitFFlags();
   return 0;
 }
