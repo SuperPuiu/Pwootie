@@ -75,7 +75,10 @@ int8_t Install(char *Version, uint8_t CheckVersion) {
     OpenPwootieFile();
 
   /* Very important: download proton and setup the custom WINE prefix for studio. */
-  SetupProton(1);
+  Status = SetupWine(1);
+  if (unlikely(Status == 1))
+    goto error;
+
   Status = SetupPrefix();
   if (unlikely(Status == -1))
     goto error;
