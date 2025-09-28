@@ -147,14 +147,25 @@ error:
   return -1;
 }
 
-/* SetupProton() is tasked with downloading and extracting proton.
+/* SetupWine() is tasked with downloading and extracting a default WINE installation.
  * @return -1 on failure and 0 on success. */
-int8_t SetupProton(uint8_t CheckExistence) {
-  const char *PROTON_NAME = "wine-proton-10.0-2-amd64.tar.xz";
-  const char *PROTON_LINK = "https://github.com/Kron4ek/Wine-Builds/releases/download/proton-10.0-2/wine-proton-10.0-2-amd64.tar.xz";
+int8_t SetupWine(uint8_t CheckExistence) {
+  const char *PROTON_NAME = "GE-Proton10-17.tar.gz";
+  const char *PROTON_LINK = "https://github.com/GloriousEggroll/proton-ge-custom/releases/download/GE-Proton10-17/GE-Proton10-17.tar.gz";
   const char *PROTON_DIR = "proton";
+  char *UpdateWine = PwootieReadEntry("update_wine");
+  
+  printf("[INFO]: Setting up wine.\n");
+  
+  if (UpdateWine) {
+    if (strcmp(UpdateWine, "false") == 0 && CheckExistence == 1) {
+      printf("[INFO]: Option update_wine appears to be false. Aborting installation.\n");
+      free(UpdateWine);
+      return 0;
+    }
 
-  printf("[INFO]: Setting up proton.\n");
+    free(UpdateWine);
+  }
 
   /* Unfortunately for me, the file is a tar.xz, which means that I'd either have to 
    * introduce ANOTHER dependency to Pwootie only for this whole case, or call system().
@@ -199,7 +210,8 @@ int8_t SetupProton(uint8_t CheckExistence) {
     Error("[ERROR]: Failed to open TarFile which is required to download proton.", ERR_STANDARD | ERR_NOEXIT);
     goto error;
   }
-
+  
+  printf("[INFO]: Downloading %s.\n", (char*)PROTON_LINK);
   Response = CurlDownload(TarFile, (char*)PROTON_LINK);
   // Response = CURLE_OK;
 
@@ -212,7 +224,8 @@ int8_t SetupProton(uint8_t CheckExistence) {
   fclose(TarFile);
 
   /* im not going to memcpy this. */
-  sprintf(Command, "tar -xvf %s -C %s", Path, PathCopy);
+  printf("[INFO]: Unzipping new version.\n");
+  sprintf(Command, "tar -xvf %s -C %s > /dev/null 2>&1", Path, PathCopy);
   system(Command);
   
   /* Remove zip file. */
@@ -262,12 +275,14 @@ int8_t SetupPrefix() {
   setenv(WINEPREFIX, Location, 1);
   
   /* Install required dlls for studio to launch. Check status values. */
+  printf("[INFO]: Installing d3dx11_43.\n");
   Status = system("winetricks d3dx11_43 > /dev/null 2>&1");
   if (unlikely(Status == -1)) {
     Error("[FATAL]: winetricks failed to install d3dx11_43. Please try to manually install the component.", ERR_STANDARD | ERR_NOEXIT);
     goto error;
   }
   
+  printf("[INFO]: Installing dxvk.\n");
   Status = system("winetricks dxvk > /dev/null 2>&1");
   if (unlikely(Status == -1)) {
     Error("[FATAL]: winetricks failed to install dxvk. Please try to manually install the component.", ERR_STANDARD | ERR_NOEXIT);
