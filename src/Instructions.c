@@ -36,13 +36,13 @@ char** ExtractInstructions(FILE *Installer, FetchStruct *Fetched) {
   uint16_t OptHeaderSize;
   char SectionName[8];
 
-  if (!Instructions)
+  if (unlikely(!Instructions))
     Error("[FATAL]: Unable to allocate Instructions array in ExtractInstructions call.", ERR_MEMORY);
 
   for (uint8_t i = 0; i < TotalPackages; i++) {
     Instructions[i] = malloc(128 * sizeof(char)); /* May be wasting a bit of memory here. */
 
-    if (!Instructions[i])
+    if (unlikely(!Instructions[i]))
       Error("[FATAL]: Unable to allocate instructions array for a package during ExtractInstructions call.", ERR_MEMORY);
   }
 
@@ -80,7 +80,7 @@ char** ExtractInstructions(FILE *Installer, FetchStruct *Fetched) {
   /* Allocate RawData array. We need it for fast access. */
   RawData = malloc(RawDataSize);
 
-  if (RawData == NULL)
+  if (unlikely(RawData == NULL))
     Error("[FATAL]: Unable to allocate RawData array during ExtractInstructions call.\n", ERR_MEMORY);
 
   /* Jump to the .rdata section. */

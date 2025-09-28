@@ -1,27 +1,10 @@
-#define _XOPEN_SOURCE 500 /* For nftw */
-
 #include <Shared.h>
 #include <errno.h>
-#include <ftw.h>
 
 /* Functions found in Packages.c */
 int8_t DownloadPackages(FetchStruct *Fetched, char *Version);
 int8_t InstallPackages(FetchStruct *Fetched, char *Version);
 FetchStruct *FetchPackages(char *Version);
-
-int32_t DeleteFile(const char *pathname, const struct stat *sbuf, int32_t type, struct FTW *ftwb) {
-  unused(sbuf);
-  unused(type);
-  unused(ftwb);
-
-  if(remove(pathname) < 0) {
-    Error("DeleteFile() call failed.", ERR_STANDARD | ERR_NOEXIT);
-    Error((char*)pathname, ERR_STANDARD | ERR_NOEXIT);
-    return -1;
-  }
-
-  return 0;
-}
 
 void DeleteVersion(char *Version) {
   uint32_t InstallDirLength = strlen(INSTALL_DIR), HomeLength = strlen(getenv("HOME"));
@@ -30,7 +13,7 @@ void DeleteVersion(char *Version) {
 
   char *VersionPath = malloc(Total * sizeof(char));
   
-  if (!VersionPath)
+  if (unlikely(!VersionPath))
     Error("[FATAL]: Unable to allocate VersionPath during DeleteVersion call.", ERR_MEMORY);
 
   memcpy(VersionPath, getenv("HOME"), HomeLength);
@@ -39,7 +22,7 @@ void DeleteVersion(char *Version) {
   VersionPath[HomeLength] = VersionPath[HomeLength + InstallDirLength + 1] = '/';
   VersionPath[Total - 1] = '\0';
   
-  if (nftw(VersionPath, DeleteFile, 10, FTW_DEPTH | FTW_MOUNT | FTW_PHYS) < 0) {
+  if (unlikely(nftw(VersionPath, DeleteFile, 10, FTW_DEPTH | FTW_MOUNT | FTW_PHYS) < 0)) {
     Error("[ERROR]: Failed to remove old VersionPath.", ERR_STANDARD | ERR_NOEXIT);
     Error(VersionPath, ERR_STANDARD | ERR_NOEXIT);
   }
@@ -74,17 +57,17 @@ int8_t Install(char *Version, uint8_t CheckVersion) {
   /* First step: get a list of packages we have to download, along with their checksum, real size and compressed size. 
    * FetchStruct also contains some additional information helpful to other functions. */
   Fetched = FetchPackages(Version);
-  if (!Fetched)
+  if (unlikely(!Fetched))
     goto error;
   
   /* Second step: download the packages using the data we got above. */
   Status = DownloadPackages(Fetched, Version);
-  if (Status == -1)
+  if (unlikely(Status == -1))
     goto error;
 
   /* Last step: install the packages. */
   Status = InstallPackages(Fetched, Version);
-  if (Status == -1)
+  if (unlikely(Status == -1))
     goto error;
   
   /* Open the Pwootie file, if it isn't open already. */
@@ -92,9 +75,12 @@ int8_t Install(char *Version, uint8_t CheckVersion) {
     OpenPwootieFile();
 
   /* Very important: download proton and setup the custom WINE prefix for studio. */
-  SetupProton(1);
+  Status = SetupWine(1);
+  if (unlikely(Status == 1))
+    goto error;
+
   Status = SetupPrefix();
-  if (Status == -1)
+  if (unlikely(Status == -1))
     goto error;
 
   PwootieWriteEntry("version", Version);

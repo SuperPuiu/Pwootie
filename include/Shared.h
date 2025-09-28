@@ -1,15 +1,25 @@
 #ifndef __UTIL_H__
 #define __UTIL_H__
+#define _XOPEN_SOURCE 700
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
 #include <curl/curl.h>
+#include <ftw.h>
+
+/* https://stackoverflow.com/questions/1668013/can-likely-unlikely-macros-be-used-in-user-space-code */
+#ifdef __GNUC__
+#define likely(x)       __builtin_expect(!!(x), 1)
+#define unlikely(x)     __builtin_expect(!!(x), 0)
+#else
+#define likely(x)       (x)
+#define unlikely(x)     (x)
+#endif
 
 /* CDN stands for Content Delivery Network */
 #define PACKAGE_MANIFEST    "-rbxPkgManifest.txt"
-#define CDN_URL             "https://setup.rbxcdn.com/"
 #define CLIENT_SETTINGS_URL "https://clientsettingscdn.roblox.com/v2/client-version/WindowsStudio64" 
 #define TEMP_PWOOTIE_FOLDER "/tmp/pwootie/"
 #define PWOOTIE_DATA        "PwootieData.txt"
@@ -58,12 +68,15 @@ int8_t Install(char *Version, uint8_t CheckVersion);
 void ReplacePathSlashes(char *Path);
 int8_t BuildDirectoryTree(char *Path);
 uint64_t QueryDiskSpace();
+int32_t DeleteFile(const char *pathname, const struct stat *sbuf, int32_t type, struct FTW *ftwb);
 char *BuildString(uint8_t Elements, ...);
 
 /* Wine.c */
-int8_t SetupPrefix();
-int8_t SetupProton(uint8_t CheckExistence);
-void Run(char *Argument, char *Version);
+int8_t  SetupPrefix();
+int8_t  SetupWine(uint8_t CheckExistence);
+int8_t  AddNewUser(char *UserId, char *Name, char *URL);
+void    RunWineCfg();
+void    Run(char *Argument, char *Version);
 
 /* Pwootie.c */
 extern FILE* PwootieFile;
@@ -78,11 +91,16 @@ char **ExtractInstructions(FILE *Installer, FetchStruct *Fetched);
 
 /* Error.c */
 void Error(char *String, uint8_t Flags);
+void SetupSignalHandler();
 
 /* CurlWrappers.c */
-void SetupHandles();
-CURLcode    CurlDownload(FILE *File, char *WithURL);
-CURLcode    CurlGet(MemoryStruct *Chunk, char *WithURL);
+void          SetupHandles();
+void          ResetMultiCurl(uint16_t Total);
+int32_t       CurlGetHandleFromMessage(CURLMsg *Message);
+int8_t        CurlMultiSetup(FILE **Files, char **Links, uint16_t Total);
+CURLcode      CurlDownload(FILE *File, char *WithURL);
+CURLcode      CurlGet(MemoryStruct *Chunk, char *WithURL);
+extern CURLM  *CurlMulti;
 
 /* FFlags.c */
 int8_t  ApplyFFlag(char *EntryName, char *Data);
@@ -90,5 +108,9 @@ int8_t  OutputFFlags(char *EntryName);
 int8_t  LoadFFlags(char *Version);
 int8_t  CreateFFlags(char *Version, char *OldVersion);
 char    *ReadFFlag(char *EntryName);
+void    ExitFFlags();
+
+/* Main.c */
+extern char *CDN_URL;
 
 #endif

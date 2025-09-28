@@ -5,6 +5,22 @@
 #include <stdarg.h>
 #include <string.h>
 
+/* Used internally nftw.
+ * @return 0 on success and -1 on failure.*/
+int32_t DeleteFile(const char *pathname, const struct stat *sbuf, int32_t type, struct FTW *ftwb) {
+  unused(sbuf);
+  unused(type);
+  unused(ftwb);
+
+  if (remove(pathname) < 0) {
+    Error("DeleteFile() call failed.", ERR_STANDARD | ERR_NOEXIT);
+    Error((char*)pathname, ERR_STANDARD | ERR_NOEXIT);
+    return -1;
+  }
+
+  return 0;
+}
+
 /* BuildDirectoryTree() builds a path of directories.
  * @return 0 on success and -1 on failure. */
 int8_t BuildDirectoryTree(char *Path) {
@@ -16,7 +32,7 @@ int8_t BuildDirectoryTree(char *Path) {
   while (Separated != NULL) {
     *Separated = '\0';
 
-    if (mkdir(Path, 0755) && errno != EEXIST) {
+    if (unlikely(mkdir(Path, 0755) && errno != EEXIST)) {
       Error("[FATAL]: Mkdir failed during BuildDirectoryTree call.", ERR_STANDARD | ERR_NOEXIT);
       Error(Path, ERR_STANDARD | ERR_NOEXIT);
       return -1;
@@ -70,7 +86,7 @@ char *BuildString(uint8_t Elements, ...) {
   va_start(Arguments, Elements);
   Str = malloc(Size * sizeof(char));
   
-  if (!Str)
+  if (unlikely(!Str))
     Error("[FATAL]: Failed to allocate new string memory during BuildString call.\n", ERR_MEMORY);
 
   for (uint8_t Arg = 0; Arg < Elements; Arg++) {
