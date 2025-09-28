@@ -121,12 +121,15 @@ char* PwootieReadEntry(char *Entry) {
 /* PwootieExit() writes the file and closes the file. This is called at the end of the program. */
 void PwootieExit() {
   if (unlikely(!PwootieFile))
-    Error("[FATAL]: PwootieFile doesn't exist. Unable to exit properly.", ERR_STANDARD);
+    return;
 
   fseek(PwootieFile, 0, SEEK_SET);
   fwrite(PwootieBuffer, BufferSize, sizeof(char), PwootieFile);
   free(PwootieBuffer);
   fclose(PwootieFile);
+
+  PwootieBuffer = NULL;
+  PwootieFile = NULL;
 }
 
 /* PwootieWriteEntry() writes an entry to the buffer. */
