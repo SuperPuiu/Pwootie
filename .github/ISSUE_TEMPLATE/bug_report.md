@@ -9,6 +9,7 @@ assignees: SuperPuiu
 
 **Before creating this issue:**
 [ ] - I've read the documentation and I'm sure it isn't helping me;
+
 [ ] - I've made sure that there wasn't / isn't a duplicated issue;
 
 **The problem I'm encountering is:**
