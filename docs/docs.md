@@ -34,4 +34,4 @@ There are a few issues to keep in mind, such as studio flickering after opening 
 If Vulkan fails to start for whatever reason, [this link might be useful](https://bbs.archlinux.org/viewtopic.php?id=301979). If it's not, open an issue and I'll try to my best to document the issue and to help.
 
 # Pwootie Building
-To build from source you need the following libraries: `curl`, `libzip` and additionally `ncurses`. Make sure you have them downloaded before attempting to build the project. Once done, use `make release` and you'll get a new executable in the `bin` folder. Use `make` if you want to build a testing version of the bootstrapper.
+To build from source you need the following libraries: `curl`, `libzip`. Make sure you have them downloaded before attempting to build the project. Once done, use `make release` and you'll get a new executable in the `bin` folder. Use `make` if you want to build a testing version of the bootstrapper.
