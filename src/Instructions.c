@@ -143,7 +143,7 @@ char** ExtractInstructions(FILE *Installer, FetchStruct *Fetched) {
 
   /* We're not out of the woods yet. We need to replace the \\ with /. I love path naming. */
   for (uint8_t i = 0; i < Fetched->TotalPackages; i++)
-    ReplacePathSlashes(Instructions[i]);
+    ConvertPath(Instructions[i]);
 
   free(RawData);
   free(PackageName);
