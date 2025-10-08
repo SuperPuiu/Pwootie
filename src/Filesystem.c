@@ -5,7 +5,7 @@
 #include <stdarg.h>
 #include <string.h>
 
-/* Used internally nftw.
+/* Used internally by nftw.
  * @return 0 on success and -1 on failure.*/
 int32_t DeleteFile(const char *pathname, const struct stat *sbuf, int32_t type, struct FTW *ftwb) {
   unused(sbuf);
@@ -45,7 +45,9 @@ int8_t BuildDirectoryTree(char *Path) {
   return 0;
 }
 
-void ReplacePathSlashes(char *Path) {
+/* ConvertPath() converts a path from a windows valid path to an unix valid path.
+ * @return NULL all time. */
+void ConvertPath(char *Path) {
   uint32_t PathLen = strlen(Path);
 
   for (uint8_t SrcIndex = 0; SrcIndex < PathLen; SrcIndex++) {

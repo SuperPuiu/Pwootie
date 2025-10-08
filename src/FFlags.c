@@ -167,7 +167,7 @@ int8_t CreateFFlags(char *Version, char *OldVersion) {
     if (OldVersion) {
       printf("[INFO]: Attempting to load default fastflags file..\n");
       free(FFlagsPath);
-      FFlagsPath = BuildString(5, getenv("HOME"), "/", INSTALL_DIR, "/", DEFAULT_SETTINGS_PATH);
+      FFlagsPath = BuildString(4, getenv("HOME"), "/", INSTALL_DIR, DEFAULT_SETTINGS_PATH);
       FFlagsFile = fopen(FFlagsPath, "r");
       
       if (unlikely(!FFlagsFile)) {

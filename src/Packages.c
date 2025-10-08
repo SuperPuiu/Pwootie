@@ -179,7 +179,7 @@ int8_t InstallPackages(FetchStruct *Fetched, char *Version) {
       Directory = Name[NameLength - 1] == 92; /* Is the entry a directory? */
 
       /* Grrr, windows paths.. */
-      ReplacePathSlashes((char*)Name);
+      ConvertPath((char*)Name);
 
       /* If the entry is a directory (only directories end with /) then we'll build the directory tree. */
       if (Directory) {
