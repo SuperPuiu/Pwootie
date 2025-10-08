@@ -65,11 +65,11 @@ int8_t GetCDNVersion(MemoryStruct *VersionStruct);
 int8_t Install(char *Version, uint8_t CheckVersion);
 
 /* Filesystem.c */
-void ReplacePathSlashes(char *Path);
-int8_t BuildDirectoryTree(char *Path);
+void     ConvertPath(char *Path);
+int8_t   BuildDirectoryTree(char *Path);
 uint64_t QueryDiskSpace();
-int32_t DeleteFile(const char *pathname, const struct stat *sbuf, int32_t type, struct FTW *ftwb);
-char *BuildString(uint8_t Elements, ...);
+int32_t  DeleteFile(const char *pathname, const struct stat *sbuf, int32_t type, struct FTW *ftwb);
+char     *BuildString(uint8_t Elements, ...);
 
 /* Wine.c */
 int8_t  SetupPrefix();
