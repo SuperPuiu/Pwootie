@@ -9,9 +9,24 @@
 static const char *PREFIX = "prefix";
 static const char *WINEPREFIX = "WINEPREFIX";
 
+static char BinPath[PATH_MAX] = {0};
+
+/* Used internally by nftw. */
+static int32_t Search(const char *PathName, const struct stat *sbuf, int32_t Type, struct FTW *ftwb) {
+  unused(sbuf);
+  unused(ftwb);
+
+  if (strstr(PathName, "wine64") && Type == FTW_F) {
+    memcpy(BinPath, PathName, strlen(PathName) + 1);
+    return 1;
+  }
+
+  return 0;
+}
+
 /* GetPrefixPath() returns the built prefix path. Allows for ExtraBytes to be allocated by passing a number argument.
  * @return always a char array. */
-char *GetPrefixPath(uint32_t ExtraBytes) {
+static char *GetPrefixPath(uint32_t ExtraBytes) {
   uint32_t HomeLength = strlen(getenv("HOME")), InstallDirLength = strlen(INSTALL_DIR);
   uint32_t PrefixLength = strlen(PREFIX);
 
@@ -230,14 +245,19 @@ int8_t SetupWine(uint8_t CheckExistence) {
   
   /* Remove zip file. */
   remove(Path);
-
-  /* Write wine_binary entry. The -6 is used to place the pointer at the start of the extension, after a newly added slash. */
-  memcpy(Path + HomeLength + InstallDirLength + ProtonDirLength + ProtonNameLength + 3 - 6, "bin", 3);
-  memcpy(Path + HomeLength + InstallDirLength + ProtonDirLength + ProtonNameLength + 1, "wine64", 6);
-  Path[HomeLength + InstallDirLength + ProtonDirLength + ProtonNameLength + 3 - 7] = Path[HomeLength + InstallDirLength + ProtonDirLength + ProtonNameLength] = '/';
-  Path[HomeLength + InstallDirLength + ProtonDirLength + ProtonNameLength + 7] = '\0';
-
-  PwootieWriteEntry("wine_binary", Path);
+  
+  /* Write wine_binary entry. If wine64 binary can't be found, then throw an error. */
+  Path[HomeLength + InstallDirLength + ProtonNameLength + ProtonDirLength - 4] = '\0';
+  nftw(Path, Search, 10, FTW_DEPTH | FTW_MOUNT | FTW_PHYS);
+  
+  if (unlikely(BinPath[0] == 0)) {
+    Error("[ERROR]: Unable to find wine64 binary. Invalid installation path.", ERR_STANDARD | ERR_NOEXIT);
+    Error(Path, ERR_STANDARD | ERR_NOEXIT);
+    goto error;
+  }
+  
+  printf("%s\n", BinPath);
+  PwootieWriteEntry("wine_binary", (char*)BinPath);
   
   /* Cleanup. */
   free(Command);
@@ -277,14 +297,14 @@ int8_t SetupPrefix() {
   /* Install required dlls for studio to launch. Check status values. */
   printf("[INFO]: Installing d3dx11_43.\n");
   Status = system("winetricks d3dx11_43 > /dev/null 2>&1");
-  if (unlikely(Status == -1)) {
+  if (unlikely(Status != 0)) {
     Error("[FATAL]: winetricks failed to install d3dx11_43. Please try to manually install the component.", ERR_STANDARD | ERR_NOEXIT);
     goto error;
   }
   
   printf("[INFO]: Installing dxvk.\n");
   Status = system("winetricks dxvk > /dev/null 2>&1");
-  if (unlikely(Status == -1)) {
+  if (unlikely(Status != 0)) {
     Error("[FATAL]: winetricks failed to install dxvk. Please try to manually install the component.", ERR_STANDARD | ERR_NOEXIT);
     goto error;
   }
