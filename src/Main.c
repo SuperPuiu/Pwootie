@@ -97,8 +97,11 @@ int main(int argc, char **argv) {
       if (strcmp(argv[2], "config") == 0) {
         RunWineCfg();
         goto exit;
+      } else if (strcmp(argv[2], "setup") == 0) {
+        SetupPrefix();
+        goto exit;
       } else {
-        printf("[INFO]: Unknown wine option specified (available options: config)\n");
+        printf("[INFO]: Unknown wine option specified (available options: config, setup)\n");
         goto exit;
       }
     }
