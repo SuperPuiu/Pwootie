@@ -59,7 +59,6 @@ typedef struct FetchPackagesStruct {
 
 /* GetVersionData.c */
 int8_t GetVersionData(VersionData *Data);
-int8_t GetCDNVersion(MemoryStruct *VersionStruct);
 
 /* Installer.c */
 int8_t Install(char *Version, uint8_t CheckVersion);
@@ -81,17 +80,17 @@ void    Run(char *Argument, char *Version);
 /* Pwootie.c */
 extern FILE* PwootieFile;
 
-void PwootieExit();
-void PwootieWriteEntry(char *Entry, char *Data);
+void   PwootieExit();
+void   PwootieWriteEntry(char *Entry, char *Data);
 int8_t OpenPwootieFile();
-char *PwootieReadEntry(char *Entry);
+char   *PwootieReadEntry(char *Entry);
 
 /* Instructions.c */
-char **ExtractInstructions(FILE *Installer, FetchStruct *Fetched);
+char   **ExtractInstructions(FILE *Installer, FetchStruct *Fetched);
 
 /* Error.c */
-void Error(char *String, uint8_t Flags, ...);
-void SetupSignalHandler();
+void   Error(char *String, uint8_t Flags, ...);
+void   SetupSignalHandler();
 
 /* CurlWrappers.c */
 void          SetupHandles();
