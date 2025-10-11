@@ -280,6 +280,11 @@ error:
  * @return 0 on success, otherwise return -1 on failure. */
 int8_t SetupPrefix() {
   printf("[INFO]: Setting up prefix.\n");
+  
+  if (unlikely(system("winetricks --version > /dev/null 2>&1") != 0)) {
+    Error("[Fatal]: Unable to run winetricks --version. Is winetricks installed?", ERR_STANDARD | ERR_NOEXIT);
+    goto error;
+  }
 
   int32_t Status;
   /* Is all this string building needed? */
