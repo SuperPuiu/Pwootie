@@ -63,16 +63,14 @@ int8_t InstallPackages(FetchStruct *Fetched, char *Version) {
   Installer = fopen(Official, "w+");
 
   if (unlikely(!Installer)) {
-    Error("[ERROR]: Unable to create RobloxStudioInstaller file during InstallPackages call.", ERR_STANDARD | ERR_NOEXIT);
-    Error(Official, ERR_STANDARD | ERR_NOEXIT);
+    Error("[ERROR]: Unable to create RobloxStudioInstaller file during InstallPackages call. (Path: %s)", ERR_STANDARD | ERR_NOEXIT, Official);
     goto error;
   }
 
   Response = CurlDownload(Installer, FullURL);
 
   if (unlikely(Response != CURLE_OK)) {
-    Error("[ERROR]: Failed to download RobloxStudioInstaller.exe.\n", ERR_STANDARD | ERR_NOEXIT);
-    Error((char*)curl_easy_strerror(Response), ERR_STANDARD | ERR_NOEXIT);
+    Error("[ERROR]: Failed to download RobloxStudioInstaller.exe. (cURL error: %s)\n", ERR_STANDARD | ERR_NOEXIT, curl_easy_strerror(Response));
     goto error;
   }
 
@@ -134,10 +132,7 @@ int8_t InstallPackages(FetchStruct *Fetched, char *Version) {
       Error("[FATAL]: Unable to allocate ZipStat during InstallPackages call.", ERR_MEMORY);
 
     if (unlikely(!ZipStat)) {
-      char Buffer[5];
-      sprintf(Buffer, "%i", i);
-      Error("[ERROR]: Failed to allocate ZipStat for one of the fetched packages during InstallPackages call.", ERR_STANDARD | ERR_NOEXIT);
-      Error(Buffer, ERR_STANDARD | ERR_NOEXIT);
+      Error("[ERROR]: Failed to allocate ZipStat for package indexed %i during InstallPackages call.", ERR_STANDARD | ERR_NOEXIT, i);
       goto error;
     }
 
@@ -150,10 +145,7 @@ int8_t InstallPackages(FetchStruct *Fetched, char *Version) {
 
     if (unlikely(!ZipPointer)) {
       zip_error_init_with_code(&ZipError, ErrorCode);
-      Error("[ERROR]: Unable to open one of the zip files.", ERR_STANDARD | ERR_NOEXIT);
-      Error(Official, ERR_STANDARD | ERR_NOEXIT);
-      Error((char*)zip_error_strerror(&ZipError), ERR_STANDARD | ERR_NOEXIT);
-
+      Error("[ERROR]: Unable to open zip file %s. (zip error: %s)", ERR_STANDARD | ERR_NOEXIT, Official, zip_error_strerror(&ZipError));
       goto error;
     }
 
@@ -167,12 +159,7 @@ int8_t InstallPackages(FetchStruct *Fetched, char *Version) {
       uint8_t Directory;
 
       if (unlikely(!Name)) {
-        char Buffer[32];
-        sprintf(Buffer, "%li", Entry);
-
-        Error("[ERROR]: Error occured while getting one of the entries from a zip.", ERR_STANDARD | ERR_NOEXIT);
-        Error(Buffer, ERR_STANDARD | ERR_NOEXIT);
-        Error(Official, ERR_STANDARD | ERR_NOEXIT);
+        Error("[ERROR]: Error occured while extracting %li entry from %s.", ERR_STANDARD | ERR_NOEXIT, Entry, Official);
         goto error;
       }
 
@@ -327,8 +314,7 @@ int8_t DownloadPackages(FetchStruct *Fetched, char *Version) {
       FilePointers[LinkIndex - Index] = fopen(ZipFilePath, "w+");
 
       if (unlikely(!FilePointers[LinkIndex - Index])) {
-        Error(ZipFilePath, ERR_STANDARD | ERR_NOEXIT);
-        Error("[ERROR]: Unable to open file during DownloadPackages call.", ERR_STANDARD | ERR_NOEXIT);
+        Error("[ERROR]: Unable to open %s during DownloadPackages call.", ERR_STANDARD | ERR_NOEXIT, ZipFilePath);
         goto error;
       } else if (unlikely(!LinkPointers[LinkIndex - Index])) {
         Error("[ERROR]: Unable to allocate link pointer during DownloadPackages call.", ERR_STANDARD | ERR_NOEXIT);
@@ -349,7 +335,7 @@ int8_t DownloadPackages(FetchStruct *Fetched, char *Version) {
         MultiCode = curl_multi_poll(CurlMulti, NULL, 0, 1000, NULL);
 
       if (MultiCode != CURLM_OK) {
-        Error("[ERROR]: MultiCode was not CURLM_OK during DownloadPackages.", ERR_STANDARD | ERR_NOEXIT);
+        Error("[ERROR]: MultiCode was not CURLM_OK during DownloadPackages. (cURL error: %s)", ERR_STANDARD | ERR_NOEXIT, curl_multi_strerror(MultiCode));
         Error((char*)curl_multi_strerror(MultiCode), ERR_STANDARD | ERR_NOEXIT);
 
         goto error;
@@ -432,8 +418,7 @@ FetchStruct* FetchPackages(char *Version) {
   CURLcode Response = CurlGet(&ManifestContent, (char*)FullURL);
 
   if (unlikely(Response != CURLE_OK)) {
-    Error("[ERROR]: GetPackages call failed to download the Manifest file.", ERR_STANDARD | ERR_NOEXIT);
-    Error((char*)curl_easy_strerror(Response), ERR_STANDARD | ERR_NOEXIT);
+    Error("[ERROR]: GetPackages call failed to download the Manifest file. (cURL error: %s)", ERR_STANDARD | ERR_NOEXIT, curl_easy_strerror(Response));
     goto error;
   }
 
