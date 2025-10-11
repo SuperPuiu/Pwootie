@@ -231,8 +231,7 @@ int8_t SetupWine(uint8_t CheckExistence) {
   // Response = CURLE_OK;
 
   if (unlikely(Response != CURLE_OK)) {
-    Error("[ERROR]: Failed to download the tar file.", ERR_STANDARD | ERR_NOEXIT);
-    Error((char*)curl_easy_strerror(Response), ERR_STANDARD | ERR_NOEXIT);
+    Error("[ERROR]: Failed to download the tar file. (cURL error: %s)", ERR_STANDARD | ERR_NOEXIT, curl_easy_strerror(Response));
     goto error;
   }
   
@@ -251,8 +250,7 @@ int8_t SetupWine(uint8_t CheckExistence) {
   nftw(Path, Search, 10, FTW_DEPTH | FTW_MOUNT | FTW_PHYS);
   
   if (unlikely(BinPath[0] == 0)) {
-    Error("[ERROR]: Unable to find wine64 binary. Invalid installation path.", ERR_STANDARD | ERR_NOEXIT);
-    Error(Path, ERR_STANDARD | ERR_NOEXIT);
+    Error("[ERROR]: Unable to find wine64 binary. Invalid installation path (%s).", ERR_STANDARD | ERR_NOEXIT, Path);
     goto error;
   }
   
@@ -281,6 +279,16 @@ error:
 int8_t SetupPrefix() {
   printf("[INFO]: Setting up prefix.\n");
   
+  char *WineBinary = PwootieReadEntry("wine_binary");
+  uint8_t FreePath = 1;
+
+  if (unlikely(!WineBinary)) {
+    WineBinary = "";
+    FreePath = 0;
+  }
+  
+  setenv("WINE", WineBinary, 1);
+
   if (unlikely(system("winetricks --version > /dev/null 2>&1") != 0)) {
     Error("[Fatal]: Unable to run winetricks --version. Is winetricks installed?", ERR_STANDARD | ERR_NOEXIT);
     goto error;
@@ -313,11 +321,17 @@ int8_t SetupPrefix() {
     Error("[FATAL]: winetricks failed to install dxvk. Please try to manually install the component.", ERR_STANDARD | ERR_NOEXIT);
     goto error;
   }
+  
+  if (FreePath)
+    free(WineBinary);
 
   free(Location);
   return 0;
 
 error:
+  if (FreePath)
+    free(WineBinary);
+
   free(Location);
   return -1;
 }
