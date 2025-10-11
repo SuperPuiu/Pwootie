@@ -56,8 +56,10 @@ int main(int argc, char **argv) {
         ApplyFFlag(argv[3], argv[4]);
       } else if (strcmp(argv[2], "read") == 0) {
         OutputFFlags(argv[3]);
+      } else if (strcmp(argv[2], "generate") == 0) { 
+        CreateFFlags(StudioVersion, NULL);
       } else {
-        printf("[INFO]: Unknown fflags option. (available options: apply, read)\n");
+        printf("[INFO]: Unknown fflags option. (available options: apply, read, generate)\n");
       }
 
       goto exit;
