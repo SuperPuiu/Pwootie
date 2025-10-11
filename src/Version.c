@@ -15,8 +15,7 @@ int8_t GetVersionData(VersionData *Data) {
     Error("[FATAL]: Unable to allocate DecodedStrings buffer in GetVersionData function.", ERR_MEMORY);
 
   if (unlikely(Response != CURLE_OK)) {
-    Error("[ERROR]: GetVersionData failed downloading the client settings.", ERR_STANDARD | ERR_NOEXIT);
-    Error((char*)curl_easy_strerror(Response), ERR_STANDARD | ERR_NOEXIT);
+    Error("[ERROR]: GetVersionData failed downloading the client settings. (%s)", ERR_STANDARD | ERR_NOEXIT, curl_easy_strerror(Response));
     free(DecodedStrings);
     return -1;
   }
@@ -62,36 +61,6 @@ int8_t GetVersionData(VersionData *Data) {
 
   free(DecodedStrings);
   free(Chunk.Memory);
-
-  return 0;
-}
-
-/* Could be useful for testing if the CDN works. */
-int8_t GetCDNVersion(MemoryStruct *VersionStruct) {
-  CURLcode Response;
-  size_t LengthURL = strlen(CDN_URL), LengthVersion = strlen("version");
-  char *FullURL = malloc((LengthURL + LengthVersion + 1) * sizeof(char)); /* One extra byte for null terminator. */
-  
-  if (unlikely(!FullURL))
-    Error("[FATAL]: Unable to allocate FullURL in GetVersion function.\n", ERR_MEMORY);
-
-  VersionStruct->Memory = malloc(1);
-  VersionStruct->Size = 0;
-  
-  memcpy(FullURL, CDN_URL, LengthURL);
-  memcpy(FullURL + LengthURL, "version", LengthVersion);
-  FullURL[LengthURL + LengthVersion + 1] = 0;
-
-  Response = CurlGet(VersionStruct, FullURL);
-
-  if (unlikely(Response != CURLE_OK)) { 
-    Error("[ERROR]: GetCDNVersion failed with curl error.\n", ERR_STANDARD | ERR_NOEXIT);
-    Error((char *)curl_easy_strerror(Response), ERR_STANDARD | ERR_NOEXIT);
-    free(FullURL);
-    return -1; 
-  }
-
-  free(FullURL);
 
   return 0;
 }
