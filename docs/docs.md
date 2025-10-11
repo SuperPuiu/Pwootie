@@ -13,18 +13,20 @@ Pwootie has a few configuration variables which you may make use of. Configurati
 
 `forced_version` - A string which instructs Pwootie to install a specific version of ROBLOX Studio.
 
+`zips_checksums` - A string used internally by Pwootie to know whenever a package can be copied from disk or should be downloaded from the CDN. Checksums are split by a semicolon.
+
 # Pwootie launch options
 Pwootie has a few launch options which can be used whenever starting the program. Launching the program without any option will launch ROBLOX Studio. Launching the program with an unknown option will launch ROBLOX Studio as well. The launch options are the following:
 
 `reinstall <wine/studio>` - This option tells the bootstrapper to reinstall either wine or studio. The `update_wine` variable is ignored when reinstalling wine.
 
-`fflags <apply/read> <options>` - This option tells the bootstrapper to apply a change to or read a specific fastflag. `read` requires one option, that being the **keyword** to find within the fastflags (that means `read` will go through the entire file and output every fastflag which contains the specified keyword). `apply` requirs two options, those being the **exact name of the fastflag** and a **boolean** for the new status. If a non-boolean is needed, you may have to edit the fastflags file on your own (`~/.robloxstudio/<version>/ClientSettings/ClientAppSettings.json`).
+`fflags <apply/read/generate> <options>` - This option tells the bootstrapper to apply a change to or read a specific fastflag. `read` requires one option, that being the **keyword** to find within the fastflags (that means `read` will go through the entire file and output every fastflag which contains the specified keyword). `apply` requirs two options, those being the **exact name of the fastflag** and a **boolean** for the new status. If a non-boolean is needed, you may have to edit the fastflags file on your own (`~/.robloxstudio/<version>/ClientSettings/ClientAppSettings.json`). `generate` will generate the fflags file using whatever is found in the prefix folder. If studio didn't generate the fflags file, then it'll error saying that it couldn't find a file within the prefix.
 
-`fflags <user> <add> <options>` - This option tells the bootstrapper to add a new user to the registry key. The parameters for the add command are the following: `userid`, `name`, `link` (optional) where `userid` is the account's UserId, `name` is the name which will appear in the account switch list (which can be whatever you want) and `link` is a link to the image you want to appear as your profile picture.
+`user <add> <options>` - The `add` option tells the bootstrapper to add a new user to the registry key. The parameters for the `add` command are the following: `userid`, `name`, `link` (optional) where `userid` is the account's UserId, `name` is the name which will appear in the account switch list (which can be whatever you want) and `link` is a link to the image you want to appear as your profile picture.
 
 `cookie <read/write> <options>` - Unimplemented.
 
-`wine <config>` - This option tells the bootstrapper to launch anything WINE related. The `config` option will launch the `winecfg` executable found in the same folder as the `wine_binary` binary is located.
+`wine <config/setup>` - This option tells the bootstrapper to launch anything WINE related. The `config` option will launch the `winecfg` executable found in the same folder as the `wine_binary` binary is located. The `setup` option will run the `SetupPrefix()` function.
 
 # Pwootie Troubleshooting
 There are a few issues to keep in mind, such as studio flickering after opening and closing a script, studio not starting in general. To be able to run studio with a version that lacks `VirtualProtectFromApp`, you have two options:
