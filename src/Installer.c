@@ -2,8 +2,9 @@
 #include <errno.h>
 
 /* Functions found in Packages.c */
-int8_t DownloadPackages(FetchStruct *Fetched, char *Version);
-int8_t InstallPackages(FetchStruct *Fetched, char *Version);
+int8_t      DownloadPackages(FetchStruct *Fetched, char *Version, char *Checksums);
+int8_t      InstallPackages(FetchStruct *Fetched, char *Version, char *Checksums);
+char        *FormatChecksums(FetchStruct *Fetched);
 FetchStruct *FetchPackages(char *Version);
 
 void DeleteVersion(char *Version) {
@@ -22,10 +23,8 @@ void DeleteVersion(char *Version) {
   VersionPath[HomeLength] = VersionPath[HomeLength + InstallDirLength + 1] = '/';
   VersionPath[Total - 1] = '\0';
   
-  if (unlikely(nftw(VersionPath, DeleteFile, 10, FTW_DEPTH | FTW_MOUNT | FTW_PHYS) < 0)) {
-    Error("[ERROR]: Failed to remove old VersionPath.", ERR_STANDARD | ERR_NOEXIT);
-    Error(VersionPath, ERR_STANDARD | ERR_NOEXIT);
-  }
+  if (unlikely(nftw(VersionPath, DeleteFile, 10, FTW_DEPTH | FTW_MOUNT | FTW_PHYS) < 0))
+    Error("[ERROR]: Failed to remove %s.", ERR_STANDARD | ERR_NOEXIT, VersionPath);
 
   free(VersionPath);
 }
@@ -41,6 +40,10 @@ int8_t Install(char *Version, uint8_t CheckVersion) {
 
   FetchStruct *Fetched = NULL;
   char *LastVersion = NULL;
+  char *Checksums = NULL;
+  
+  if (PwootieFile)
+    Checksums = PwootieReadEntry("checksums");
 
   if (CheckVersion == 1 && PwootieFile) {
     LastVersion = PwootieReadEntry("version");
@@ -61,22 +64,22 @@ int8_t Install(char *Version, uint8_t CheckVersion) {
     goto error;
   
   /* Second step: download the packages using the data we got above. */
-  Status = DownloadPackages(Fetched, Version);
+  Status = DownloadPackages(Fetched, Version, Checksums);
   if (unlikely(Status == -1))
     goto error;
 
   /* Last step: install the packages. */
-  Status = InstallPackages(Fetched, Version);
+  Status = InstallPackages(Fetched, Version, Checksums);
   if (unlikely(Status == -1))
     goto error;
   
   /* Open the Pwootie file, if it isn't open already. */
-  if (!PwootieFile)
+  if (unlikely(!PwootieFile))
     OpenPwootieFile();
 
-  /* Very important: download proton and setup the custom WINE prefix for studio. */
+  /* Very important: download wine and setup the custom WINE prefix for studio. */
   Status = SetupWine(1);
-  if (unlikely(Status == 1))
+  if (unlikely(Status == -1))
     goto error;
 
   Status = SetupPrefix();
@@ -93,10 +96,15 @@ int8_t Install(char *Version, uint8_t CheckVersion) {
     DeleteVersion(LastVersion);
     free(LastVersion);
   }
+  
+  /* Store the new checksums. */
+  Checksums = FormatChecksums(Fetched);
+  PwootieWriteEntry("checksums", Checksums);
 
   /* Free up the used memory. */
   free(Fetched->PackageList);
   free(Fetched);
+  free(Checksums);
 
   return 0;
 
