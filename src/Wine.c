@@ -162,6 +162,98 @@ error:
   return -1;
 }
 
+/* GetStudioSettings() is tasked with fetching the state of a global studio setting.
+ * @return char array with the status of the setting, or NULL on failure. */
+char *GetStudioSetting(char *Name) {
+  FILE *Settings = NULL;
+  uint32_t MSFLen, FullPathLen;
+  uint32_t FileDataLen;
+  uint32_t NameLen = strlen(Name);
+  uint32_t StateLen = 0, StateSize = 6;
+
+  const char *MainSettingsFile = "/drive_c/users/steamuser/AppData/Local/Roblox/GlobalSettings_13.xml";
+  MSFLen = strlen(MainSettingsFile);
+  
+  char *FileData = NULL;
+  char *SettingState = NULL;
+  char *FullPath = GetPrefixPath(MSFLen);
+  
+  FullPathLen = strlen(FullPath);
+  memcpy(FullPath + FullPathLen, MainSettingsFile, MSFLen + 1);
+  
+  Settings = fopen(FullPath, "r");
+  
+  if (!Settings) {
+    Error("[ERROR]: Unable to open %s during GetStudioSetting call.", ERR_STANDARD | ERR_NOEXIT, FullPath);
+    goto error;
+  }
+  
+  fseek(Settings, 0, SEEK_END);
+  FileDataLen = ftell(Settings);
+  fseek(Settings, 0, SEEK_SET);
+  
+  FileData = malloc((FileDataLen + 1) * sizeof(char));
+  
+  if (!FileData)
+    Error("[ERROR]: Unable to allocate FileData during GetStudioSetting call.", ERR_MEMORY);
+  
+  fread(FileData, sizeof(char), FileDataLen, Settings);
+  FileData[FileDataLen] = '\0';
+  
+  char *KeyStart = strstr(FileData, Name);
+  
+  if (!KeyStart) {
+    Error("[ERROR]: Unable to find %s.", ERR_STANDARD | ERR_NOEXIT, Name);
+    goto error;
+  }
+
+  KeyStart += NameLen;
+  
+  if (*KeyStart != '"') {
+    Error("[ERROR]: KeyStart appears to not point to the end of a string.", ERR_STANDARD | ERR_NOEXIT);
+    goto error;
+  }
+  
+  /* Skip the end quote and arrow. */
+  KeyStart += 2;
+  
+  /* I've chosen 6 to be the default size as that's the required size to store "false\0" */
+  SettingState = malloc(6 * sizeof(char));
+
+  while (*KeyStart != '<') {
+    if (StateLen == StateSize) {
+      StateSize *= 1.5;
+
+      char *NewPtr = realloc(SettingState, StateSize);
+      
+      if (!NewPtr)
+        Error("[ERROR]: Unable to realloc SettingsState.", ERR_MEMORY);
+      
+      SettingState = NewPtr;
+    }
+
+    SettingState[StateLen] = *KeyStart;
+    StateLen++;
+    KeyStart++;
+  }
+
+  SettingState[StateLen] = '\0';
+
+  fclose(Settings);
+  free(FileData);
+  free(FullPath);
+  return SettingState;
+error:
+  if (Settings)
+    fclose(Settings);
+
+  if (FileData)
+    free(FileData);
+
+  free(FullPath);
+  return NULL;
+}
+
 /* SetupWine() is tasked with downloading and extracting a default WINE installation.
  * @return -1 on failure and 0 on success. */
 int8_t SetupWine(uint8_t CheckExistence) {
@@ -355,7 +447,7 @@ void RunWineCfg() {
   Command = malloc(sizeof(char) * (WineExecLen + 1 + strlen("cfg")));
 
   if (!Command)
-    Error("[FATAL]: Unable to reallocate Command during RunWineCfg call.", ERR_MEMORY);
+    Error("[FATAL]: Unable to allocate Command during RunWineCfg call.", ERR_MEMORY);
   
   memcpy(Command, WineExec, WineExecLen);
 
@@ -368,7 +460,11 @@ void RunWineCfg() {
   }
 
   setenv(WINEPREFIX, Prefix, 1);
-  system(Command);
+  if (unlikely(system(Command) != 0)) {
+    Error("[ERROR]: system(%s) returned non zero value. Running default winecfg.", ERR_STANDARD | ERR_NOEXIT, Command);
+    if (unlikely(system("winecfg") != 0)) /* Fallback. */
+      Error("[ERROR]: Unable to run fallback winecfg. Aborting.", ERR_STANDARD | ERR_NOEXIT);
+  }
 
   free(Command);
   free(Prefix);
