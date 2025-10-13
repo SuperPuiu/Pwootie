@@ -1,14 +1,32 @@
+BUILD_DIR = bin
+
 CFLAGS = -Wall -Wextra -Wshadow -o3
 LIBS = -lcurl -lzip
+
 SRCS = $(wildcard src/*.c)
+OBJS = $(patsubst src/%.c, $(BUILD_DIR)/%.o, $(SRCS))
 
-test:
-	mkdir -p bin
-	gcc $(CFLAGS) $(LIBS) $(SRCS) -fsanitize=address -fsanitize=leak -g -o bin/PwootieTest -I include/
+OUTPUT = $(BUILD_DIR)/Pwootie
+OUTPUT_TEST = $(BUILD_DIR)/PwootieTest
 
-release:
-	mkdir -p bin
-	gcc $(CFLAGS) $(LIBS) $(SRCS) -o bin/Pwootie -I include/
+$(BUILD_DIR):
+	mkdir -p $@
+
+$(BUILD_DIR)/%.o: src/%.c | $(BUILD_DIR)
+	@gcc $(FLAGS_LINUX) -c $< -o $@ -I include/
+
+$(OUTPUT_TEST): $(OBJS)
+	gcc $(CFLAGS) $(LIBS) $(OBJS) -fsanitize=address -fsanitize=leak -g -o $@
+
+$(OUTPUT): $(OBJS)
+	gcc $(CFLAGS) $(LIBS) $(OBJS) -o $@
 
 run:
-	./bin/PwootieTest
+	./$(OUTPUT_TEST)
+clean:
+	rm $(BUILD_DIR)/*.*
+
+test: $(OUTPUT_TEST)
+release: $(OUTPUT)
+
+.PHONY: test release run clean
