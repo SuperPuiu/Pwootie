@@ -24,6 +24,7 @@
 #define TEMP_PWOOTIE_FOLDER "/tmp/pwootie/"
 #define PWOOTIE_DATA        "PwootieData.txt"
 #define INSTALL_DIR         ".robloxstudio"
+#define PWOOTIE_VERSION     "0.1-Experimental"
 
 #define unused(x) ((void) (x))
 
@@ -38,6 +39,15 @@ typedef struct MemoryStruct {
   size_t  Size;
 } MemoryStruct;
 
+typedef struct EnvInfoStruct {
+  char *PwootieVersion, *Renderer;
+  char *RobloxVersion, *DesktopEnvironment; 
+  char *SessionType;
+
+  char WineVersion[64];
+  char KernelRelease[64], MachineType[64];
+} EnvInfoStruct;
+
 typedef struct VersionData {
   char *Version;
   char *ClientVersionUpload; /* GUID */
@@ -46,7 +56,7 @@ typedef struct VersionData {
 
 typedef struct Package {
   char    Name[64];
-  char    Checksum[64];
+  char    Checksum[33];
   int64_t Size;
   int64_t ZipSize;
 } Package;
@@ -56,6 +66,9 @@ typedef struct FetchPackagesStruct {
   uint32_t  LongestName;
   uint8_t   TotalPackages;
 } FetchStruct;
+
+/* System.c */
+EnvInfoStruct *FetchEnvInfo(char *StudioVersion);
 
 /* GetVersionData.c */
 int8_t GetVersionData(VersionData *Data);
@@ -107,6 +120,7 @@ int8_t  OutputFFlags(char *EntryName);
 int8_t  LoadFFlags(char *Version);
 int8_t  CreateFFlags(char *Version, char *OldVersion);
 char    *ReadFFlag(char *EntryName);
+char    *GetStudioSetting(char *Name);
 void    ExitFFlags();
 
 /* Main.c */
