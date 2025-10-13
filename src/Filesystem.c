@@ -5,6 +5,12 @@
 #include <stdarg.h>
 #include <string.h>
 
+/* TODO: Implement a non-linux dependent solution for other platforms. */
+#include <sys/sendfile.h>
+
+/* Used by CopyFile. */
+char *CopyRoot;
+
 /* Used internally by nftw.
  * @return 0 on success and -1 on failure.*/
 int32_t DeleteFile(const char *pathname, const struct stat *sbuf, int32_t type, struct FTW *ftwb) {
@@ -19,6 +25,23 @@ int32_t DeleteFile(const char *pathname, const struct stat *sbuf, int32_t type, 
   }
 
   return 0;
+}
+
+/* Used internally by nftw.
+ * @return 0 on success and -1 on failure. */
+int32_t CopyEntry(const char *PathName, const struct stat *_sbuf, int32_t type, struct FTW *_ftwb) {
+  unused(_sbuf);
+  unused(_ftwb);
+
+  if (type == FTW_F) {
+    return 0;
+  } else if (type == FTW_D) {
+    mkdir(PathName, 0755);
+    return 0;
+  } else {
+    Error("[ERROR] Unhandled file type detected during CopyFile call.", ERR_STANDARD | ERR_NOEXIT);
+    return 1;
+  }
 }
 
 /* BuildDirectoryTree() builds a path of directories.
