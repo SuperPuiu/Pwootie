@@ -24,6 +24,26 @@ void ChecksumToString(uint8_t *Checksum, char *Buffer) {
 }
 
 /* Prototypes are found in Installer.c */
+char *FormatChecksums(FetchStruct *Fetched) {
+  const uint8_t BufferSize = 32;
+  uint32_t SrcIndex = 0;
+
+  /* 33 is the size of the Checksum buffer. We add another Fetched->TotalPackages for the semicolons. */
+  char *Checksums = malloc((Fetched->TotalPackages * BufferSize + Fetched->TotalPackages) * sizeof(char));
+  
+  if (!Checksums)
+    Error("[FATAL]: Unable to allocate Checksums buffer during FormatChecksums call.", ERR_MEMORY);
+
+  for (; SrcIndex < Fetched->TotalPackages; SrcIndex++) {
+    memcpy(Checksums + SrcIndex * (BufferSize + 1), Fetched->PackageList[SrcIndex].Checksum, BufferSize);
+    Checksums[SrcIndex + SrcIndex * (BufferSize + 1) + BufferSize] = ';';
+  }
+
+  Checksums[SrcIndex * (BufferSize + 1)] = '\0';
+
+  return Checksums;
+}
+
 int8_t InstallPackages(FetchStruct *Fetched, char *Version) {
   CURLcode  Response;
   FILE      *Installer;
