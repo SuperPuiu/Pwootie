@@ -20,7 +20,7 @@ int main(int argc, char **argv) {
   StudioVersion = ForcedVersion ? ForcedVersion : StudioVersion;
   
   CDN_URL = ForcedCDN ? ForcedCDN : CDN_URL;
-
+  
   if (argc > 1) {
     if (strcmp(argv[1], "reinstall") == 0) {
       if (argc < 3) {
@@ -106,6 +106,20 @@ int main(int argc, char **argv) {
         printf("[INFO]: Unknown wine option specified (available options: config, setup)\n");
         goto exit;
       }
+    } else if (strcmp(argv[1], "info") == 0) {
+      EnvInfoStruct *Info = FetchEnvInfo(StudioVersion);
+      
+      if (!Info) {
+        printf("[INFO]: Unable to fetch environment info.\n");
+        goto exit;
+      }
+
+      printf("===ENVIRONMENT INFORMATION===");
+      printf("\nKernel: %s\nProcessor type: %s\nPwootie version: %s\nRenderer: %s\nStudio version: %s\nDesktop environment: %s\nSession type: %s\nWine version: %s\n",
+              Info->KernelRelease, Info->MachineType, Info->PwootieVersion, Info->Renderer, Info->RobloxVersion, Info->DesktopEnvironment, Info->SessionType, Info->WineVersion);
+      printf("=============================\n");
+
+      goto exit;
     }
 
     /* The first argument can be the token we need to log into studio. */
