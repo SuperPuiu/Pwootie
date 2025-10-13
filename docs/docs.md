@@ -13,7 +13,7 @@ Pwootie has a few configuration variables which you may make use of. Configurati
 
 `forced_version` - A string which instructs Pwootie to install a specific version of ROBLOX Studio.
 
-`zips_checksums` - A string used internally by Pwootie to know whenever a package can be copied from disk or should be downloaded from the CDN. Checksums are split by a semicolon.
+`checksums` - A string used internally by Pwootie to know whenever a package can be copied from disk or should be downloaded from the CDN. Checksums are split by a semicolon.
 
 # Pwootie launch options
 Pwootie has a few launch options which can be used whenever starting the program. Launching the program without any option will launch ROBLOX Studio. Launching the program with an unknown option will launch ROBLOX Studio as well. The launch options are the following:
