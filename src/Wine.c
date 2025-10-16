@@ -302,7 +302,9 @@ int8_t SetupWine(uint8_t CheckExistence) {
     goto error;
   } else if (errno == EEXIST && CheckExistence == 1) {
     printf("[INFO]: Proton was already installed.\n");
-    goto error;
+    free(Path);
+    free(Command);
+    return 0;
   }
   
   memcpy(PathCopy, Path, Total);
