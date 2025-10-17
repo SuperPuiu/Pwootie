@@ -31,8 +31,9 @@ int8_t ApplyFFlag(char *EntryName, char *Data) {
     return -1; /* You know what you did. */
   }
 
-  if (unlikely(strcmp(Data, "true") != 0 && strcmp(Data, "false") != 0)) {
-    printf("[ERROR]: Data must be either 'true' or 'false'.\n");
+  if (unlikely(strcmp(Data, "True") != 0 && strcmp(Data, "False") != 0)) {
+    printf("[ERROR]: Data must be either 'True' or 'False'.\n");
+    printf("[INFO]: The new state is case sensitive. Make sure to follow the format found in the json file.\n");
     return -1;
   }
 
@@ -89,8 +90,8 @@ int8_t ApplyFFlag(char *EntryName, char *Data) {
   for (uint32_t SrcIndex = Position; SrcIndex < Position + 5 && StrStart[SrcIndex] != '"'; SrcIndex++)
     BooleanData[SrcIndex - Position] = StrStart[SrcIndex];
 
-  if (strncmp(BooleanData, "true", 4) == 0) {
-    if (strcmp(Data, "true") == 0)
+  if (strncmp(BooleanData, "True", 4) == 0) {
+    if (strcmp(Data, "True") == 0)
       goto no_change;
 
     ClientLen += 1;
@@ -103,14 +104,14 @@ int8_t ApplyFFlag(char *EntryName, char *Data) {
     StrStart = ClientBuffer + StrStartPosition;
     
     memmove(StrStart + 5, StrStart + 4, ClientLen - StrStartPosition - 4);
-    memcpy(StrStart, "false", 5);
-  } else if (strncmp(BooleanData, "false", 5) != 0) {
-    if (strcmp(Data, "false") == 0)
+    memcpy(StrStart, "False", 5);
+  } else if (strncmp(BooleanData, "False", 5) == 0) {
+    if (strcmp(Data, "False") == 0)
       goto no_change;
     
     memmove(StrStart + 4, StrStart + 5, ClientLen - StrStartPosition - 5);
-    memcpy(StrStart, "true", 4);
-  } else {
+    memcpy(StrStart, "True", 4);
+  } else { 
     goto non_changeable;
   }
 
@@ -160,8 +161,7 @@ int8_t CreateFFlags(char *Version, char *OldVersion) {
   FileDestination = fopen(DestinationPath, "w");
 
   if (!FFlagsFile) {
-    Error("[ERROR]: Unable to open FFlagsFile file.", ERR_STANDARD | ERR_NOEXIT);
-    Error(FFlagsPath, ERR_STANDARD | ERR_NOEXIT);
+    Error("[ERROR]: Unable to open FFlagsFile file '%s'.", ERR_STANDARD | ERR_NOEXIT, FFlagsPath);
     
     /* Try to use the default copy of the fastflags file if we have OldVersion initialized. */
     if (OldVersion) {
@@ -174,6 +174,8 @@ int8_t CreateFFlags(char *Version, char *OldVersion) {
         Error("[ERROR]: Unable to open the default fastflags file.\n", ERR_STANDARD | ERR_NOEXIT);
         goto error;
       }
+
+      printf("[INFO]: Successfully loaded default fastflags file!\n");
     } else {
       goto error;
     }
