@@ -20,7 +20,7 @@
 
 /* CDN stands for Content Delivery Network */
 #define PACKAGE_MANIFEST    "-rbxPkgManifest.txt"
-#define CLIENT_SETTINGS_URL "https://clientsettingscdn.roblox.com/v2/client-version/WindowsStudio64" 
+#define CLIENT_SETTINGS_URL "https://clientsettingscdn.roblox.com/v2/client-version/WindowsStudio64"
 #define TEMP_PWOOTIE_FOLDER "/tmp/pwootie/"
 #define PWOOTIE_DATA        "PwootieData.txt"
 #define INSTALL_DIR         ".robloxstudio"
@@ -41,7 +41,7 @@ typedef struct MemoryStruct {
 
 typedef struct EnvInfoStruct {
   char *PwootieVersion, *Renderer;
-  char *RobloxVersion, *DesktopEnvironment; 
+  char *RobloxVersion, *DesktopEnvironment;
   char *SessionType;
 
   char WineVersion[64];
@@ -69,6 +69,7 @@ typedef struct FetchPackagesStruct {
 
 /* System.c */
 EnvInfoStruct *FetchEnvInfo(char *StudioVersion);
+int32_t       ExecProgram(char *Program, uint8_t Silent, ...);
 
 /* GetVersionData.c */
 int8_t GetVersionData(VersionData *Data);
