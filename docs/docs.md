@@ -3,9 +3,11 @@ Pwootie has a few configuration variables which you may make use of. Configurati
 
 `cdn` - A string for the CDN link to be used. Defaults to `https://setup.rbxcdn.com/`. This is used whenever a new version of ROBLOX Studio is installed.
 
-`update_wine` - A boolean (`true` or `false`) which tells the bootstrapper if it should update the Proton installation whenever possible. 
+`update_wine` - A boolean (`true` or `false`) which tells the bootstrapper if it should update the Proton installation whenever possible.
 
 `wine_binary` - A string which tells the bootstrapper where is the `wine64` executable located. This is automatically modified during update unless `update_wine` boolean is false.
+
+`wine_link` - A string which tells the bootstrapper what link to use when updating wine.
 
 `debug` - A boolean (`true` or `false`) which tells the bootstrapper to let WINE throw errors and warnings in the terminal.
 
