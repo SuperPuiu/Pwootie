@@ -58,10 +58,9 @@ static uint8_t PADDING[] = {0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 /*
  * Rotates a 32-bit word left by n bits
  */
-uint32_t rotateLeft(uint32_t x, uint32_t n){
+static inline uint32_t rotateLeft(uint32_t x, uint32_t n){
   return (x << n) | (x >> (32 - n));
 }
-
 
 /*
  * Initialize a context
@@ -148,7 +147,7 @@ void md5Finalize(MD5Context *ctx){
 /*
  * Step on 512 bits of input with the main MD5 algorithm.
  */
-void md5Step(uint32_t *buffer, uint32_t *input){
+void md5Step(uint32_t *restrict buffer, uint32_t *restrict input){
   uint32_t AA = buffer[0];
   uint32_t BB = buffer[1];
   uint32_t CC = buffer[2];
@@ -195,7 +194,7 @@ void md5Step(uint32_t *buffer, uint32_t *input){
  * Functions that run the algorithm on the provided input and put the digest into result.
  * result should be able to store 16 bytes.
  */
-void md5String(char *input, uint8_t *result){
+void md5String(char *restrict input, uint8_t *restrict result){
   MD5Context ctx;
   md5Init(&ctx);
   md5Update(&ctx, (uint8_t *)input, strlen(input));
