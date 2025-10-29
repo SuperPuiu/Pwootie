@@ -1,6 +1,6 @@
 BUILD_DIR = bin
 
-CFLAGS = -Wall -Wextra -Wshadow -o3
+CFLAGS = -Wall -Wextra -Wshadow -o3 -g
 LIBS = -lcurl -lzip
 
 SRCS = $(wildcard src/*.c)
@@ -13,10 +13,10 @@ $(BUILD_DIR):
 	mkdir -p $@
 
 $(BUILD_DIR)/%.o: src/%.c | $(BUILD_DIR)
-	@gcc $(FLAGS_LINUX) -c $< -o $@ -I include/
+	@gcc $(CFLAGS) -c $< -o $@ -I include/
 
 $(OUTPUT_TEST): $(OBJS)
-	gcc $(CFLAGS) $(LIBS) $(OBJS) -fsanitize=address -fsanitize=leak -g -o $@
+	gcc $(CFLAGS) $(LIBS) $(OBJS) -fsanitize=address -fsanitize=leak -o $@
 
 $(OUTPUT): $(OBJS)
 	gcc $(CFLAGS) $(LIBS) $(OBJS) -o $@
