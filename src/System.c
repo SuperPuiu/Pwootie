@@ -65,10 +65,8 @@ int32_t ExecProgram(char *Program, uint8_t Silent, ...) {
       close(FileDescriptor);
     }
 
-    if (unlikely(execve(Program, Packed, environ) == -1)) {
-      Error("[ERROR]: Unable to run %s.", ERR_STANDARD | ERR_NOEXIT, Program);
-      return -1;
-    }
+    if (unlikely(execve(Program, Packed, environ) == -1))
+      exit(EXIT_FAILURE);
   }
 
   waitpid(NewPID, &WaitStatus, 0);
@@ -79,6 +77,8 @@ int32_t ExecProgram(char *Program, uint8_t Silent, ...) {
   }
 
   va_end(Arguments);
+
+  free(Packed);
   return WEXITSTATUS(WaitStatus);
 }
 
