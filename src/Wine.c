@@ -27,7 +27,12 @@ static int32_t Search(const char *PathName, const struct stat *sbuf, int32_t Typ
 /* GetPrefixPath() returns the built prefix path. Allows for ExtraBytes to be allocated by passing a number argument.
  * @return always a char array. */
 static char *GetPrefixPath(uint32_t ExtraBytes) {
-  uint32_t HomeLength = strlen(getenv("HOME")), InstallDirLength = strlen(INSTALL_DIR);
+  char *HomeEnv = getenv("HOME");
+
+  if (!HomeEnv)
+    Error("No HOME environment variable found. Aborting.", ERR_STANDARD);
+
+  uint32_t HomeLength = strlen(HomeEnv), InstallDirLength = strlen(INSTALL_DIR);
   uint32_t PrefixLength = strlen(PREFIX);
 
   char *Location = malloc((HomeLength + InstallDirLength + PrefixLength + ExtraBytes + 4) * sizeof(char));
@@ -35,7 +40,7 @@ static char *GetPrefixPath(uint32_t ExtraBytes) {
   if (unlikely(!Location))
     Error("[FATAL]: Unable to allocate Location buffer during GetPrefixPath call.", ERR_MEMORY);
 
-  memcpy(Location, getenv("HOME"), HomeLength);
+  memcpy(Location, HomeEnv, HomeLength);
   memcpy(Location + HomeLength + 1, INSTALL_DIR, InstallDirLength);
   memcpy(Location + HomeLength + InstallDirLength + 2, PREFIX, PrefixLength);
   Location[HomeLength] = Location[HomeLength + InstallDirLength + 1] = Location[HomeLength + InstallDirLength + PrefixLength + 2] =  '/';
@@ -162,6 +167,46 @@ error:
   return -1;
 }
 
+char *GetDefaultWineBinary() {
+  char *PathEnv = getenv("PATH");
+  char *WineBinPath = NULL;
+  char SearchPath[PATH_MAX];
+
+  uint32_t PathEnvLen = strlen(PathEnv);
+  uint32_t SearchPathIndex = 0;
+
+  if (unlikely(!PathEnv)) {
+    Error("[ERROR]: Unable to getenv PATH", ERR_STANDARD | ERR_NOEXIT);
+    return NULL;
+  }
+
+  for (uint32_t SrcIndex = 0; SrcIndex < PathEnvLen; SrcIndex++) {
+    if (likely(PathEnv[SrcIndex] != ':')) {
+      SearchPath[SearchPathIndex] = PathEnv[SrcIndex];
+      SearchPathIndex++;
+    } else {
+      /* Include the \0 string terminator. */
+      memcpy(SearchPath + SearchPathIndex, "wine", 5);
+
+      if (access(SearchPath, F_OK) != 0) {
+        SearchPathIndex = 0;
+        continue;
+      }
+
+      WineBinPath = malloc((SearchPathIndex + 5) * sizeof(char));
+
+      if (unlikely(!WineBinPath))
+        Error("[FATAL]: Unable to allocate WineBinPath during GetDefaultWineBinary call.", ERR_MEMORY);
+
+      memcpy(WineBinPath, SearchPath, SearchPathIndex + 5);
+      return WineBinPath;
+    }
+  }
+
+  Error("[ERROR]: No wine binary found in $PATH environment variable.", ERR_STANDARD | ERR_NOEXIT);
+  return NULL;
+}
+
 /* GetStudioSettings() is tasked with fetching the state of a global studio setting.
  * @return char array with the status of the setting, or NULL on failure. */
 char *GetStudioSetting(char *Name) {
@@ -183,7 +228,7 @@ char *GetStudioSetting(char *Name) {
 
   Settings = fopen(FullPath, "r");
 
-  if (!Settings) {
+  if (unlikely(!Settings)) {
     Error("[ERROR]: Unable to open %s during GetStudioSetting call.", ERR_STANDARD | ERR_NOEXIT, FullPath);
     goto error;
   }
@@ -194,7 +239,7 @@ char *GetStudioSetting(char *Name) {
 
   FileData = malloc((FileDataLen + 1) * sizeof(char));
 
-  if (!FileData)
+  if (unlikely(!FileData))
     Error("[ERROR]: Unable to allocate FileData during GetStudioSetting call.", ERR_MEMORY);
 
   fread(FileData, sizeof(char), FileDataLen, Settings);
@@ -202,7 +247,7 @@ char *GetStudioSetting(char *Name) {
 
   char *KeyStart = strstr(FileData, Name);
 
-  if (!KeyStart) {
+  if (unlikely(!KeyStart)) {
     Error("[ERROR]: Unable to find %s.", ERR_STANDARD | ERR_NOEXIT, Name);
     goto error;
   }
@@ -475,6 +520,7 @@ void RunWineCfg() {
 }
 
 void Run(char *restrict Argument, char *restrict Version) {
+  printf("[INFO]: Attempting to launch studio..\n");
   const char *EXECUTABLE = "RobloxStudioBeta.exe";
 
   if (Argument == NULL)
@@ -483,13 +529,17 @@ void Run(char *restrict Argument, char *restrict Version) {
   /* Yeah well I can't put them next to the other char arrays. */
   char *WINE_EXEC = PwootieReadEntry("wine_binary");
   char *DEBUG_ENTRY = PwootieReadEntry("debug");
-  uint8_t FreeFlag = 1, Silence = 1;
+  uint8_t Silence = 1;
 
   /* If the wine_binary entry doesn't exist, just create a dummy one and hope wine exists. */
   if (!WINE_EXEC) {
-    PwootieWriteEntry("wine_binary", "wine");
-    FreeFlag = 0;
-    WINE_EXEC = "wine";
+    char *DefaultWine = GetDefaultWineBinary();
+
+    if (!DefaultWine)
+      return;
+
+    PwootieWriteEntry("wine_binary", DefaultWine);
+    WINE_EXEC = DefaultWine;
   }
 
   if (DEBUG_ENTRY) {
@@ -519,9 +569,7 @@ void Run(char *restrict Argument, char *restrict Version) {
 
   free(Executable);
   free(Location);
-
-  if (FreeFlag)
-    free(WINE_EXEC);
+  free(WINE_EXEC);
 
   if (DEBUG_ENTRY)
     free(DEBUG_ENTRY);
