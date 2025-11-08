@@ -6,18 +6,18 @@
 
 #include <unistd.h>
 
-static const char *PREFIX = "prefix";
-static const char *WINEPREFIX = "WINEPREFIX";
+const char *PREFIX = "prefix";
+const char *WINEPREFIX = "WINEPREFIX";
 
-static char BinPath[PATH_MAX] = {0};
+char NFTW_BinPath[PATH_MAX] = {0};
 
 /* Used internally by nftw. */
 static int32_t Search(const char *PathName, const struct stat *sbuf, int32_t Type, struct FTW *ftwb) {
   unused(sbuf);
   unused(ftwb);
 
-  if (strstr(PathName, "wine64") && Type == FTW_F) {
-    memcpy(BinPath, PathName, strlen(PathName) + 1);
+  if ((strstr(PathName, "wine64") || strstr(PathName, "wine")) && Type == FTW_F) {
+    memcpy(NFTW_BinPath, PathName, strlen(PathName) + 1);
     return 1;
   }
 
@@ -302,12 +302,23 @@ error:
 /* SetupWine() is tasked with downloading and extracting a default WINE installation.
  * @return -1 on failure and 0 on success. */
 int8_t SetupWine(uint8_t CheckExistence) {
-  const char *PROTON_NAME = "GE-Proton10-17.tar.gz";
-  const char *PROTON_LINK = "https://github.com/GloriousEggroll/proton-ge-custom/releases/download/GE-Proton10-17/GE-Proton10-17.tar.gz";
-  const char *PROTON_DIR = "proton";
+  const char *WINE_INSTALL_DIR = "wine";
+  char *DownloadLink = "https://github.com/GloriousEggroll/proton-ge-custom/releases/download/GE-Proton10-17/GE-Proton10-17.tar.gz";
   char *UpdateWine = PwootieReadEntry("update_wine");
+  char *ForcedLink = PwootieReadEntry("wine_link");
+  char WineName[256] = {0};
 
   printf("[INFO]: Setting up wine.\n");
+
+  if (ForcedLink)
+    DownloadLink = ForcedLink;
+
+  uint32_t DownloadLinkLength = strlen(DownloadLink), WineNameLength = 0;
+
+  for (uint32_t SrcIndex = DownloadLinkLength; SrcIndex > 0 && DownloadLink[SrcIndex] != '/'; SrcIndex--)
+    WineNameLength = DownloadLinkLength - SrcIndex;
+
+  memcpy(WineName, DownloadLink + (DownloadLinkLength - WineNameLength), WineNameLength + 1);
 
   if (UpdateWine) {
     if (strcmp(UpdateWine, "false") == 0 && CheckExistence == 1) {
@@ -323,13 +334,13 @@ int8_t SetupWine(uint8_t CheckExistence) {
    * introduce ANOTHER dependency to Pwootie only for this whole case, or call system().
    * Second choice sounds like the best choice to me. */
   uint32_t HomeLength = strlen(getenv("HOME")), InstallDirLength = strlen(INSTALL_DIR);
-  uint32_t ProtonDirLength = strlen(PROTON_DIR), ProtonNameLength = strlen(PROTON_NAME);
+  uint32_t WineDirLength = strlen(WINE_INSTALL_DIR);
 
   CURLcode Response;
 
   /* 3 for two additional slashes and one additional magic byte.
    * The extra 256 are for building the path to the wine_binary. */
-  uint32_t Total = HomeLength + InstallDirLength + ProtonDirLength + ProtonNameLength + 4 + 256;
+  uint32_t Total = HomeLength + InstallDirLength + WineDirLength + WineNameLength + 4 + 256;
 
   char *Path = malloc(Total * sizeof(char)), *PathCopy = malloc(Total * sizeof(char));
   char *Command = malloc(Total * 2 + 3 + 4);
@@ -337,16 +348,16 @@ int8_t SetupWine(uint8_t CheckExistence) {
 
   memcpy(Path, getenv("HOME"), HomeLength);
   memcpy(Path + HomeLength + 1, INSTALL_DIR, InstallDirLength);
-  memcpy(Path + HomeLength + InstallDirLength + 2, PROTON_DIR, ProtonDirLength);
-  Path[HomeLength] = Path[HomeLength + InstallDirLength + 1] = Path[HomeLength + InstallDirLength + ProtonDirLength + 2] = '/';
-  Path[HomeLength + InstallDirLength + ProtonDirLength + 3] = '\0';
+  memcpy(Path + HomeLength + InstallDirLength + 2, WINE_INSTALL_DIR, WineDirLength);
+  Path[HomeLength] = Path[HomeLength + InstallDirLength + 1] = Path[HomeLength + InstallDirLength + WineDirLength + 2] = '/';
+  Path[HomeLength + InstallDirLength + WineDirLength + 3] = '\0';
 
   /* First create the directory. */
   if (mkdir(Path, 0755) && errno != EEXIST) {
     Error("[ERROR]: Failed to create the proton installation folder.", ERR_STANDARD | ERR_NOEXIT);
     goto error;
   } else if (errno == EEXIST && CheckExistence == 1) {
-    printf("[INFO]: Proton was already installed.\n");
+    printf("[INFO]: WINE is already installed.\n");
     free(Path);
     free(Command);
     return 0;
@@ -354,19 +365,20 @@ int8_t SetupWine(uint8_t CheckExistence) {
 
   memcpy(PathCopy, Path, Total);
 
-  memcpy(Path + HomeLength + InstallDirLength + ProtonDirLength + 3, PROTON_NAME, ProtonNameLength);
-  Path[HomeLength + InstallDirLength + ProtonNameLength + ProtonDirLength + 3] = '\0';
+  memcpy(Path + HomeLength + InstallDirLength + WineDirLength + 3, WineName, WineNameLength);
+  Path[HomeLength + InstallDirLength + WineNameLength + WineDirLength + 3] = '\0';
 
   /* Open file and download it. */
+  printf("%s\n", Path);
   TarFile = fopen(Path, "w");
 
   if (unlikely(!TarFile)) {
-    Error("[ERROR]: Failed to open TarFile which is required to download proton.", ERR_STANDARD | ERR_NOEXIT);
+    Error("[ERROR]: Failed to open TarFile which is required to download WINE.", ERR_STANDARD | ERR_NOEXIT);
     goto error;
   }
 
-  printf("[INFO]: Downloading %s.\n", (char*)PROTON_LINK);
-  Response = CurlDownload(TarFile, (char*)PROTON_LINK);
+  printf("[INFO]: Downloading %s.\n", DownloadLink);
+  Response = CurlDownload(TarFile, DownloadLink);
   // Response = CURLE_OK;
 
   if (unlikely(Response != CURLE_OK)) {
@@ -385,21 +397,24 @@ int8_t SetupWine(uint8_t CheckExistence) {
   remove(Path);
 
   /* Write wine_binary entry. If wine64 binary can't be found, then throw an error. */
-  Path[HomeLength + InstallDirLength + ProtonNameLength + ProtonDirLength - 4] = '\0';
+  Path[HomeLength + InstallDirLength + WineNameLength + WineDirLength - 4] = '\0';
   nftw(Path, Search, 10, FTW_DEPTH | FTW_MOUNT | FTW_PHYS);
 
-  if (unlikely(BinPath[0] == 0)) {
+  if (unlikely(NFTW_BinPath[0] == 0)) {
     Error("[ERROR]: Unable to find wine64 binary. Invalid installation path (%s).", ERR_STANDARD | ERR_NOEXIT, Path);
     goto error;
   }
 
-  printf("%s\n", BinPath);
-  PwootieWriteEntry("wine_binary", (char*)BinPath);
+  printf("%s\n", NFTW_BinPath);
+  PwootieWriteEntry("wine_binary", NFTW_BinPath);
 
   /* Cleanup. */
   free(Command);
   free(Path);
   free(PathCopy);
+
+  if (ForcedLink)
+    free(ForcedLink);
 
   return 0;
 
@@ -407,6 +422,9 @@ error:
   free(Path);
   free(PathCopy);
   free(Command);
+
+  if (ForcedLink)
+    free(ForcedLink);
 
   if (TarFile)
     fclose(TarFile);
