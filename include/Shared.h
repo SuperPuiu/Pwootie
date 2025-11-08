@@ -69,7 +69,7 @@ typedef struct FetchPackagesStruct {
 
 /* System.c */
 EnvInfoStruct *FetchEnvInfo(char *StudioVersion);
-int32_t       ExecProgram(char *Program, uint8_t Silent, ...);
+int32_t       ExecProgram(char *Program, uint8_t Silent, uint8_t Disown, ...);
 
 /* GetVersionData.c */
 int8_t GetVersionData(VersionData *Data);

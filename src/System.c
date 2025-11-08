@@ -14,7 +14,7 @@ extern char **environ;
 
 #define min(a,b) ( ((a) < (b)) ? (a) : (b))
 
-int32_t ExecProgram(char *Program, uint8_t Silent, ...) {
+int32_t ExecProgram(char *Program, uint8_t Silent, uint8_t Disown, ...) {
   char *CurrentArgument;
   char **Packed = malloc(sizeof(char*) + 5);
 
@@ -24,7 +24,7 @@ int32_t ExecProgram(char *Program, uint8_t Silent, ...) {
   pid_t NewPID;
 
   va_list Arguments;
-  va_start(Arguments, Silent);
+  va_start(Arguments, Disown);
 
   int WaitStatus;
 
@@ -69,11 +69,13 @@ int32_t ExecProgram(char *Program, uint8_t Silent, ...) {
       exit(EXIT_FAILURE);
   }
 
-  waitpid(NewPID, &WaitStatus, 0);
+  if (!Disown) {
+    waitpid(NewPID, &WaitStatus, 0);
 
-  if (WIFEXITED(WaitStatus) != 1 || WEXITSTATUS(WaitStatus) != 0) {
-    Error("[ERROR]: Something went wrong while running %s.", ERR_STANDARD | ERR_NOEXIT, Program);
-    return -1;
+    if (WIFEXITED(WaitStatus) != 1 || WEXITSTATUS(WaitStatus) != 0) {
+      Error("[ERROR]: Something went wrong while running %s.", ERR_STANDARD | ERR_NOEXIT, Program);
+      return -1;
+    }
   }
 
   va_end(Arguments);
