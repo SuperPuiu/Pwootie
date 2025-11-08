@@ -18,9 +18,8 @@ int main(int argc, char **argv) {
 
   /* If we have a ForcedVersion, then use that. */
   StudioVersion = ForcedVersion ? ForcedVersion : StudioVersion;
-  
   CDN_URL = ForcedCDN ? ForcedCDN : CDN_URL;
-  
+
   if (argc > 1) {
     if (strcmp(argv[1], "reinstall") == 0) {
       if (argc < 3) {
@@ -34,19 +33,19 @@ int main(int argc, char **argv) {
         Install(StudioVersion, 0);
       else
         printf("[INFO]: Unknown reinstall option. (available options: wine, studio)\n");
-      
+
       goto exit;
     } else if (strcmp(argv[1], "fflags") == 0) {
       if (LoadFFlags(StudioVersion) == -1) {
         Error("[INFO]: Failed to load fflags.\n", ERR_STANDARD | ERR_NOEXIT);
         goto exit;
       }
-      
+
       if (argc < 4) {
         printf("[INFO]: fflags require one or more parameters. See the documentation for more information.\n");
         goto exit;
       }
-      
+
       if (strcmp(argv[2], "apply") == 0) {
         if (argc < 5) {
           printf("[INFO]: Apply requires two parameters, that being <Name> and <Option>.\n");
@@ -56,7 +55,7 @@ int main(int argc, char **argv) {
         ApplyFFlag(argv[3], argv[4]);
       } else if (strcmp(argv[2], "read") == 0) {
         OutputFFlags(argv[3]);
-      } else if (strcmp(argv[2], "generate") == 0) { 
+      } else if (strcmp(argv[2], "generate") == 0) {
         CreateFFlags(StudioVersion, NULL);
       } else {
         printf("[INFO]: Unknown fflags option. (available options: apply, read, generate)\n");
@@ -108,7 +107,7 @@ int main(int argc, char **argv) {
       }
     } else if (strcmp(argv[1], "info") == 0) {
       EnvInfoStruct *Info = FetchEnvInfo(StudioVersion);
-      
+
       if (!Info) {
         printf("[INFO]: Unable to fetch environment info.\n");
         goto exit;
@@ -133,13 +132,13 @@ exit:
   /* Cleanup */
   if (Data.Version)
     free(Data.Version);
-  
+
   if (Data.ClientVersionUpload)
     free(Data.ClientVersionUpload);
-  
+
   if (Data.ClientVersionUpload)
     free(Data.BootstrapperVersion);
-  
+
   if (ForcedVersion)
     free(ForcedVersion);
 
