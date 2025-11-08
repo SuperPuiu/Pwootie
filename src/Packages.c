@@ -10,7 +10,7 @@
 #define APP_SETTINGS_DATA   "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\r\n<Settings>\r\n        <ContentFolder>content</ContentFolder>\r\n        <BaseUrl>http://www.roblox.com</BaseUrl>\r\n</Settings>\r\n"
 
 /* This is ugly. */
-void ChecksumToString(uint8_t *Checksum, char *Buffer) {
+void ChecksumToString(uint8_t *restrict Checksum, char *restrict Buffer) {
   uint8_t BufPosition = 0;
   char l_Buf[3];
 
@@ -30,13 +30,13 @@ char *FormatChecksums(FetchStruct *Fetched) {
 
   /* 33 is the size of the Checksum buffer. We add another Fetched->TotalPackages for the semicolons. */
   char *Checksums = malloc((Fetched->TotalPackages * BufferSize + Fetched->TotalPackages) * sizeof(char));
-  
+
   if (!Checksums)
     Error("[FATAL]: Unable to allocate Checksums buffer during FormatChecksums call.", ERR_MEMORY);
 
   for (; SrcIndex < Fetched->TotalPackages; SrcIndex++) {
-    memcpy(Checksums + SrcIndex * (BufferSize + 1), Fetched->PackageList[SrcIndex].Checksum, BufferSize);
-    Checksums[SrcIndex + SrcIndex * (BufferSize + 1) + BufferSize] = ';';
+    memcpy(Checksums + (SrcIndex * (BufferSize + 1)), Fetched->PackageList[SrcIndex].Checksum, BufferSize);
+    Checksums[SrcIndex * (BufferSize + 1) + BufferSize] = ';';
   }
 
   Checksums[SrcIndex * (BufferSize + 1)] = '\0';
@@ -47,7 +47,7 @@ char *FormatChecksums(FetchStruct *Fetched) {
 int8_t InstallPackages(FetchStruct *Fetched, char *Version) {
   CURLcode  Response;
   FILE      *Installer;
-  
+
   struct zip_stat *ZipStat = NULL;
 
   uint32_t SettingsLen = strlen(APP_SETTINGS_DATA), LengthVersion = strlen(Version);
@@ -62,7 +62,7 @@ int8_t InstallPackages(FetchStruct *Fetched, char *Version) {
   char *InstallDir      = malloc((InstallDirTotal) * sizeof(char));
   char *FullURL         = BuildString(4, CDN_URL, Version, "-", OFFICIAL_INSTALLER);
 
-  if (!Official) 
+  if (!Official)
     Error("[FATAL]: Unable to allocate Official during InstallPackages call.", ERR_MEMORY);
   else if (!InstallDir)
     Error("[FATAL]: Unable to allocate InstallDir during InstallPackages call.", ERR_MEMORY);
@@ -94,12 +94,12 @@ int8_t InstallPackages(FetchStruct *Fetched, char *Version) {
     goto error;
   }
 
-  /* For this step, we have two ways of proceeding: 
-   * 1. Hardcode a 2D array of chars with where the zip files should be extracted. 
+  /* For this step, we have two ways of proceeding:
+   * 1. Hardcode a 2D array of chars with where the zip files should be extracted.
    * CONS: If ROBLOX decided to change locations or add new packages we'll have to update the hardcoded array.
-   * PROS: Easier to implement. 
-   * 2. Get extraction locations directly from RobloxStudioInstaller.exe: 
-   * CONS: More difficult to implement. 
+   * PROS: Easier to implement.
+   * 2. Get extraction locations directly from RobloxStudioInstaller.exe:
+   * CONS: More difficult to implement.
    * PROS: We're fixing the problem we'd have with the first solution.
    *
    * I found second solution by looking at the source code for Vinegar. Big thanks to them.
@@ -145,7 +145,7 @@ int8_t InstallPackages(FetchStruct *Fetched, char *Version) {
 
     char *Memory;
     FILE *NewFile;
-    
+
     ZipStat = calloc(256, sizeof(int));
 
     if (!ZipStat)
@@ -159,7 +159,7 @@ int8_t InstallPackages(FetchStruct *Fetched, char *Version) {
     /* Construct required paths. Official path becomes the path to which the zip file is located. */
     memcpy(InstallDir + HomeLength + InstallDirLength + LengthVersion + 3, Instructions[i], InstructionLength + 1);
     memcpy(Official + TempDirLength, Fetched->PackageList[i].Name, ZipLength);
-    Official[TempDirLength + ZipLength] = '\0'; 
+    Official[TempDirLength + ZipLength] = '\0';
 
     ZipPointer = zip_open(Official, 0, &ErrorCode);
 
@@ -227,7 +227,7 @@ int8_t InstallPackages(FetchStruct *Fetched, char *Version) {
 
     free(ZipStat);
     zip_close(ZipPointer);
-    
+
     ZipStat = NULL;
 
     printf("[INFO]: Installing package %i out of %i.\r", i + 1, Fetched->TotalPackages);
@@ -243,7 +243,7 @@ int8_t InstallPackages(FetchStruct *Fetched, char *Version) {
 
   /* Remove temporary directory. We need to reset the path buffer. */
   Official[InstallerLength + TempDirLength] = '\0';
-  
+
   if (unlikely(nftw(Official, DeleteFile, 10, FTW_DEPTH | FTW_MOUNT | FTW_PHYS) < 0)) {
     Error("[ERROR]: Failed to remove the Pwootie temporary directory.", ERR_STANDARD | ERR_NOEXIT);
     Error(Official, ERR_STANDARD | ERR_NOEXIT);
@@ -263,7 +263,7 @@ error:
 
   if (ZipStat)
     free(ZipStat);
-  
+
   if (Instructions) {
     for (uint8_t i = 0; i < Fetched->TotalPackages; i++)
       free(Instructions[i]);
@@ -280,7 +280,7 @@ int8_t DownloadPackages(FetchStruct *Fetched, char *Version) {
 
   char *FullURL = malloc((LengthURL + LengthVersion + Fetched->LongestName + 2) * sizeof(char));
   char *ZipFilePath = malloc((RootPartLength + Fetched->LongestName + 2) * sizeof(char));
-  
+
   FILE **FilePointers = NULL;
   char **LinkPointers = NULL;
 
@@ -296,25 +296,25 @@ int8_t DownloadPackages(FetchStruct *Fetched, char *Version) {
   memcpy(FullURL + LengthURL, Version, LengthVersion);
   FullURL[LengthURL + LengthVersion] = '-';
 
-  /* Create a temp folder for downloads. 
+  /* Create a temp folder for downloads.
    * The installer function cleans it once installation finishes.*/
   if (unlikely(mkdir(TEMP_PWOOTIE_FOLDER, 0755) && errno != EEXIST)) {
     Error("[FATAL]: Failed to create new directory within /tmp/.", ERR_STANDARD | ERR_NOEXIT);
     goto error;
   }
-  
+
   printf("Downloading packages..\n");
 
   /* A for loop is used here just to keep Index at a local scope. A while loop would've worked too. */
   for (uint32_t Index = 0; Index < Fetched->TotalPackages;) {
     CURLMsg *MultiMsg;
-    
+
     int32_t StillRunning = 1, MessagesLeft = 0;
     Increment = Fetched->TotalPackages - Index >= 32 ? 32 : Fetched->TotalPackages % 32;
-    
+
     FilePointers = malloc(Increment * sizeof(FILE*));
     LinkPointers = malloc(Increment * sizeof(char*));
-    
+
     if (unlikely(!FilePointers))
       Error("[FATAL]: Failed to allocate FilePointers during DownloadPackages call.", ERR_MEMORY);
     else if (unlikely(!LinkPointers))
@@ -376,7 +376,7 @@ int8_t DownloadPackages(FetchStruct *Fetched, char *Version) {
 
       md5File(FilePointers[LinkIndex], Checksum);
       ChecksumToString(Checksum, ChecksumBuf);
-      
+
       if (unlikely(strcmp(ChecksumBuf, Fetched->PackageList[Index + LinkIndex].Checksum) != 0)) {
         Error("[ERROR]: One or more packages' checksums are not matching.", ERR_STANDARD | ERR_NOEXIT);
         goto error;
@@ -392,7 +392,7 @@ int8_t DownloadPackages(FetchStruct *Fetched, char *Version) {
     ResetMultiCurl(Increment);
     Index += Increment;
   }
-  
+
   printf("Download completed!\n");
 
   free(ZipFilePath);
@@ -417,8 +417,8 @@ error:
 }
 
 FetchStruct* FetchPackages(char *Version) {
-  MemoryStruct ManifestContent; 
-  
+  MemoryStruct ManifestContent;
+
   /* Last time I counted there were 35 packages. Hopefully I didn't count them wrong. */
   uint8_t PackageArraySize = 35, CurrentPackage = 0;
 
@@ -430,10 +430,10 @@ FetchStruct* FetchPackages(char *Version) {
     Error("[FATAL]: Failed to allocate PackagesData within GetPackages call.", ERR_MEMORY);
   else if (unlikely(!ReturnStruct))
     Error("[FATAL]: Failed to allocate ReturnStruct within GetPackages call.", ERR_MEMORY);
-  
+
   ManifestContent.Memory = malloc(1);
   ManifestContent.Size = 0;
-  
+
   /* Get the manifest containing all the packages information needed. */
   CURLcode Response = CurlGet(&ManifestContent, (char*)FullURL);
 
@@ -442,7 +442,7 @@ FetchStruct* FetchPackages(char *Version) {
     goto error;
   }
 
-  /* Construct PackagesData. Inside the for loop we're also allocating more space for PackagesData. 
+  /* Construct PackagesData. Inside the for loop we're also allocating more space for PackagesData.
    * We're skipping first 3 bytes, aka "v0\n"*/
   for (uint32_t i = 4; i < ManifestContent.Size; i++) {
     uint32_t SizePosition = 0, ZipSizePosition = 0, NamePosition = 0, ChecksumPosition = 0;
@@ -450,11 +450,11 @@ FetchStruct* FetchPackages(char *Version) {
     char SizeBuf[64], ZipSizeBuf[64];
 
     if (PackageArraySize == CurrentPackage) {
-      /* Allocate PackageArraySize * 2 more space for packages, to avoid making a lot of expensive malloc calls. 
+      /* Allocate PackageArraySize * 2 more space for packages, to avoid making a lot of expensive malloc calls.
        * We might be wasting a bit of memory here. */
       PackageArraySize *= 2;
       Package *l_PackagesData = realloc(PackagesData, sizeof(Package) * PackageArraySize);
-      
+
       if (unlikely(!l_PackagesData)) {
         Error("[ERROR]: Unable to reallocate PackagesData from GetPackages function.", ERR_STANDARD | ERR_NOEXIT);
         goto error;
@@ -462,8 +462,8 @@ FetchStruct* FetchPackages(char *Version) {
 
       PackagesData = l_PackagesData;
     }
-    
-    /* Maybe I could've did this section in a prettier way. Whatever. 
+
+    /* Maybe I could've did this section in a prettier way. Whatever.
      * We subtract current position by one because we have to clean the carriage return character. */
     /* First read the name of the package. */
     for (; ManifestContent.Memory[i] != '\n'; i++, NamePosition++)
@@ -493,7 +493,7 @@ FetchStruct* FetchPackages(char *Version) {
 
     PackagesData[CurrentPackage].Size    = atoi(SizeBuf);
     PackagesData[CurrentPackage].ZipSize = atoi(ZipSizeBuf);
-    
+
     /* Update LongestPackageName. */
     if (ReturnStruct->LongestName < NamePosition)
       ReturnStruct->LongestName = NamePosition;
