@@ -461,23 +461,21 @@ int8_t SetupPrefix() {
     goto error;
   }
 
+  errno = 0;
+
   /* https://www.man7.org/linux/man-pages/man3/setenv.3.html */
   setenv(WINEPREFIX, Location, 1);
 
   /* Install required dlls for studio to launch. Check status values. */
   printf("[INFO]: Installing d3dx11_43.\n");
   Status = system("winetricks d3dx11_43 > /dev/null 2>&1");
-  if (unlikely(Status != 0)) {
+  if (unlikely(Status != 0))
     Error("[FATAL]: winetricks failed to install d3dx11_43. Please try to manually install the component.", ERR_STANDARD | ERR_NOEXIT);
-    goto error;
-  }
 
   printf("[INFO]: Installing dxvk.\n");
   Status = system("winetricks dxvk > /dev/null 2>&1");
-  if (unlikely(Status != 0)) {
+  if (unlikely(Status != 0))
     Error("[FATAL]: winetricks failed to install dxvk. Please try to manually install the component.", ERR_STANDARD | ERR_NOEXIT);
-    goto error;
-  }
 
   if (FreePath)
     free(WineBinary);
@@ -588,7 +586,4 @@ void Run(char *restrict Argument, char *restrict Version) {
   free(Executable);
   free(Location);
   free(WINE_EXEC);
-
-  if (DEBUG_ENTRY)
-    free(DEBUG_ENTRY);
 }
