@@ -36,13 +36,8 @@ int main(int argc, char **argv) {
 
       goto exit;
     } else if (strcmp(argv[1], "fflags") == 0) {
-      if (LoadFFlags(StudioVersion) == -1) {
-        Error("[INFO]: Failed to load fflags.\n", ERR_STANDARD | ERR_NOEXIT);
-        goto exit;
-      }
-
-      if (argc < 4) {
-        printf("[INFO]: fflags require one or more parameters. See the documentation for more information.\n");
+      if (LoadFFlags(StudioVersion) == -1 && strcmp(argv[2], "generate") != 0) {
+        printf("[INFO]: Failed to load fflags.\n");
         goto exit;
       }
 
@@ -54,6 +49,11 @@ int main(int argc, char **argv) {
 
         ApplyFFlag(argv[3], argv[4]);
       } else if (strcmp(argv[2], "read") == 0) {
+        if (argc < 4) {
+          printf("[INFO]: fflags require one or more parameters. See the documentation for more information.\n");
+          goto exit;
+        }
+
         OutputFFlags(argv[3]);
       } else if (strcmp(argv[2], "generate") == 0) {
         CreateFFlags(StudioVersion, NULL);
