@@ -9,9 +9,10 @@
 #include <errno.h>
 #include <unistd.h>
 
+#include <pwd.h>
 #include <ctype.h>
 
-#define DEFAULT_SETTINGS_PATH "/prefix/drive_c/users/steamuser/AppData/Local/Roblox/ClientSettings/StudioAppSettings.json"
+#define DEFAULT_SETTINGS_PATH "/prefix/drive_c/users/%s/AppData/Local/Roblox/ClientSettings/StudioAppSettings.json"
 #define VERSION_SETTINGS_PATH "ClientSettings/ClientAppSettings.json"
 
 static FILE *ClientFile     = NULL;
@@ -20,12 +21,12 @@ static uint32_t ClientLen   = 0;
 
 /* ApplyFFlag(char*, char*) is used to change the state of a fast flag.
  * @return 0 on success and -1 on failure. */
-int8_t ApplyFFlag(char *EntryName, char *Data) {
+int8_t ApplyFFlag(char *restrict EntryName, char *restrict Data) {
   if (EntryName == NULL || Data == NULL) {
     printf("[ERROR]: EntryName and Data must not be null when calling ApplyFFlag.\n");
     return -1;
   }
-  
+
   if (unlikely(isalpha(EntryName[0]) == 0 || EntryName[0] == '"')) {
     printf("[ERROR]: The name must not contain any special characters.\n");
     return -1; /* You know what you did. */
@@ -39,10 +40,10 @@ int8_t ApplyFFlag(char *EntryName, char *Data) {
 
   if (!ClientBuffer)
     Error("[FATAL]: ClientSettings file is not open.", ERR_STANDARD);
-  
+
   uint32_t EntryLen = strlen(EntryName);
   uint32_t EntryNameSize = EntryLen * 2;
-  
+
   char *FullEntryName = NULL;
   char *StrStart = strstr(ClientBuffer, EntryName);
   char BooleanData[6];
@@ -53,7 +54,7 @@ int8_t ApplyFFlag(char *EntryName, char *Data) {
   }
 
   uint32_t Position = 0, StrStartPosition = ClientLen - strlen(StrStart);
-  
+
   /* Skip first half, aka the entry name. If the name doesn't match with the entry name from the fastflags file,
    * start copying the name and then throw an error. Else continue with the next phase. */
   while (StrStart[Position] != ':') {
@@ -102,16 +103,16 @@ int8_t ApplyFFlag(char *EntryName, char *Data) {
 
     ClientBuffer = NewPointer;
     StrStart = ClientBuffer + StrStartPosition;
-    
+
     memmove(StrStart + 5, StrStart + 4, ClientLen - StrStartPosition - 4);
     memcpy(StrStart, "False", 5);
   } else if (strncmp(BooleanData, "False", 5) == 0) {
     if (strcmp(Data, "False") == 0)
       goto no_change;
-    
+
     memmove(StrStart + 4, StrStart + 5, ClientLen - StrStartPosition - 5);
     memcpy(StrStart, "True", 4);
-  } else { 
+  } else {
     goto non_changeable;
   }
 
@@ -131,13 +132,28 @@ non_changeable:
 /* CreateFFlags(char*, char*) is used to create a copy of the studio settings found within the prefix folder.
  * OldVersion can be NULL, which will cause CreateFFlags to use the DEFAULT_SETTINGS_PATH variable.
  * @return 0 on success and -1 on failure. */
-int8_t CreateFFlags(char *Version, char *OldVersion) {
+int8_t CreateFFlags(char *restrict Version, char *restrict OldVersion) {
   FILE *FFlagsFile = NULL, *FileDestination = NULL;
   char *FFlagsPath;
 
-  if (!OldVersion)
-    FFlagsPath = BuildString(5, getenv("HOME"), "/", INSTALL_DIR, "/", DEFAULT_SETTINGS_PATH);
-  else
+  if (!OldVersion) {
+    char FormattedString[PATH_MAX];
+    struct passwd *UserData;
+
+    sprintf(FormattedString, DEFAULT_SETTINGS_PATH, "steamuser");
+    FFlagsPath = BuildString(4, getenv("HOME"), "/", INSTALL_DIR, FormattedString);
+
+    if (access(FFlagsPath, F_OK) == -1) {
+      UserData = getpwuid(getuid());
+
+      if (UserData == NULL)
+        goto error;
+
+      free(FFlagsPath);
+      sprintf(FormattedString, DEFAULT_SETTINGS_PATH, UserData->pw_name);
+      FFlagsPath = BuildString(4, getenv("HOME"), "/", INSTALL_DIR, FormattedString);
+    }
+  } else
     FFlagsPath = BuildString(7, getenv("HOME"), "/", INSTALL_DIR, "/", OldVersion, "/", VERSION_SETTINGS_PATH);
 
   char *DestinationPath = BuildString(7, getenv("HOME"), "/", INSTALL_DIR, "/", Version, "/", VERSION_SETTINGS_PATH);
@@ -151,7 +167,7 @@ int8_t CreateFFlags(char *Version, char *OldVersion) {
   DestinationPath[DIRECTORY_LEN] = '\0';
 
   if (BuildDirectoryTree(DestinationPath) != 0) {
-    Error("[ERROR]: BuildDirectoryPath failed during CreateFFlags call.\n", ERR_STANDARD | ERR_NOEXIT);
+    Error("[ERROR]: BuildDirectoryPath failed during CreateFFlags call.", ERR_STANDARD | ERR_NOEXIT);
     goto error;
   }
 
@@ -162,14 +178,14 @@ int8_t CreateFFlags(char *Version, char *OldVersion) {
 
   if (!FFlagsFile) {
     Error("[ERROR]: Unable to open FFlagsFile file '%s'.", ERR_STANDARD | ERR_NOEXIT, FFlagsPath);
-    
+
     /* Try to use the default copy of the fastflags file if we have OldVersion initialized. */
     if (OldVersion) {
       printf("[INFO]: Attempting to load default fastflags file..\n");
       free(FFlagsPath);
       FFlagsPath = BuildString(4, getenv("HOME"), "/", INSTALL_DIR, DEFAULT_SETTINGS_PATH);
       FFlagsFile = fopen(FFlagsPath, "r");
-      
+
       if (unlikely(!FFlagsFile)) {
         Error("[ERROR]: Unable to open the default fastflags file.\n", ERR_STANDARD | ERR_NOEXIT);
         goto error;
@@ -221,7 +237,7 @@ error:
   return -1;
 }
 
-/* ReadFFlag(char*) is used to read to a buffer the state of a fast flag. 
+/* ReadFFlag(char*) is used to read to a buffer the state of a fast flag.
  * Not to be confused with OutputFFlags(char *EntryName) which is used for console outputting.
  * ReadFFlag will return the **first** match, so the EntryName should be the complete name for the flag.
  * @return the fast flag state on success and NULL on failure. */
@@ -286,28 +302,28 @@ int8_t OutputFFlags(char *EntryName) {
 int8_t LoadFFlags(char *Version) {
   char *Path = BuildString(7, getenv("HOME"), "/", INSTALL_DIR, "/", Version, "/", VERSION_SETTINGS_PATH);
   ClientFile = fopen(Path, "r+");
-  
+
   if (!ClientFile) {
-    Error("[ERROR]: Unable to open ClientFile during LoadFFlags call.\n", ERR_STANDARD | ERR_NOEXIT);
+    Error("[ERROR]: Unable to open ClientFile during LoadFFlags call.", ERR_STANDARD | ERR_NOEXIT);
     goto error;
   }
-  
+
   fseek(ClientFile, 0, SEEK_END);
   ClientLen = ftell(ClientFile);
   fseek(ClientFile, 0, SEEK_SET);
-  
+
   ClientBuffer = malloc((ClientLen + 1) * sizeof(char));
-  
+
   if (!ClientBuffer)
     Error("[ERROR]: Unable to allocate ClientBuffer during LoadFFlags call.\n", ERR_MEMORY);
-  
+
   fread(ClientBuffer, ClientLen, sizeof(char), ClientFile);
 
   if (ferror(ClientFile) != 0) {
     Error("[ERROR]: Unable to read from ClientFile during LoadFFlags call.\n", ERR_STANDARD | ERR_NOEXIT);
     goto error;
   }
-  
+
   ClientBuffer[ClientLen] = '\0';
 
   free(Path);
