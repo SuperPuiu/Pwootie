@@ -87,9 +87,9 @@ char     *BuildString(uint8_t Elements, ...);
 /* Wine.c */
 int8_t  SetupPrefix();
 int8_t  SetupWine(uint8_t CheckExistence);
-int8_t  AddNewUser(char *UserId, char *Name, char *URL);
+int8_t  AddNewUser(char *restrict UserId, char *restrict Name, char *restrict URL);
 void    RunWineCfg();
-void    Run(char *Argument, char *Version);
+void    Run(char *restrict Argument, char *restrict Version);
 
 /* Pwootie.c */
 extern FILE* PwootieFile;
@@ -116,10 +116,10 @@ CURLcode      CurlGet(MemoryStruct *Chunk, char *WithURL);
 extern CURLM  *CurlMulti;
 
 /* FFlags.c */
-int8_t  ApplyFFlag(char *EntryName, char *Data);
+int8_t  ApplyFFlag(char *restrict EntryName, char *restrict Data);
 int8_t  OutputFFlags(char *EntryName);
 int8_t  LoadFFlags(char *Version);
-int8_t  CreateFFlags(char *Version, char *OldVersion);
+int8_t  CreateFFlags(char *restrict Version, char *restrict OldVersion);
 char    *ReadFFlag(char *EntryName);
 char    *GetStudioSetting(char *Name);
 void    ExitFFlags();
