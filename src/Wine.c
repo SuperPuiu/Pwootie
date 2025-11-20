@@ -577,7 +577,7 @@ void Run(char *restrict Argument, char *restrict Version) {
   memcpy(Executable, getenv("HOME"), HomeLength);
   memcpy(Executable + HomeLength + 1, INSTALL_DIR, InstallLen);
   memcpy(Executable + HomeLength + InstallLen + 2, Version, VersionLen);
-  memcpy(Executable + HomeLength + InstallLen + VersionLen + 3, EXECUTABLE, ExecutableLen);
+  memcpy(Executable + HomeLength + InstallLen + VersionLen + 3, EXECUTABLE, ExecutableLen + 1);
   Executable[HomeLength] = Executable[HomeLength + InstallLen + 1] = Executable[HomeLength + InstallLen + VersionLen + 2] = '/';
 
   setenv(WINEPREFIX, Location, 1);
