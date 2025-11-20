@@ -13,7 +13,7 @@ void DeleteVersion(char *Version) {
   uint32_t Total = InstallDirLength + HomeLength + VersionLength + 3;
 
   char *VersionPath = malloc(Total * sizeof(char));
-  
+
   if (unlikely(!VersionPath))
     Error("[FATAL]: Unable to allocate VersionPath during DeleteVersion call.", ERR_MEMORY);
 
@@ -22,7 +22,7 @@ void DeleteVersion(char *Version) {
   memcpy(VersionPath + HomeLength + InstallDirLength + 2, Version, VersionLength);
   VersionPath[HomeLength] = VersionPath[HomeLength + InstallDirLength + 1] = '/';
   VersionPath[Total - 1] = '\0';
-  
+
   if (unlikely(nftw(VersionPath, DeleteFile, 10, FTW_DEPTH | FTW_MOUNT | FTW_PHYS) < 0))
     Error("[ERROR]: Failed to remove %s.", ERR_STANDARD | ERR_NOEXIT, VersionPath);
 
@@ -41,7 +41,7 @@ int8_t Install(char *Version, uint8_t CheckVersion) {
   FetchStruct *Fetched = NULL;
   char *LastVersion = NULL;
   char *Checksums = NULL;
-  
+
   if (PwootieFile)
     Checksums = PwootieReadEntry("checksums");
 
@@ -57,12 +57,12 @@ int8_t Install(char *Version, uint8_t CheckVersion) {
     }
   }
 
-  /* First step: get a list of packages we have to download, along with their checksum, real size and compressed size. 
+  /* First step: get a list of packages we have to download, along with their checksum, real size and compressed size.
    * FetchStruct also contains some additional information helpful to other functions. */
   Fetched = FetchPackages(Version);
   if (unlikely(!Fetched))
     goto error;
-  
+
   /* Second step: download the packages using the data we got above. */
   Status = DownloadPackages(Fetched, Version, Checksums);
   if (unlikely(Status == -1))
@@ -72,7 +72,7 @@ int8_t Install(char *Version, uint8_t CheckVersion) {
   Status = InstallPackages(Fetched, Version, Checksums);
   if (unlikely(Status == -1))
     goto error;
-  
+
   /* Open the Pwootie file, if it isn't open already. */
   if (unlikely(!PwootieFile))
     OpenPwootieFile();
@@ -87,7 +87,7 @@ int8_t Install(char *Version, uint8_t CheckVersion) {
     goto error;
 
   PwootieWriteEntry("version", Version);
-  
+
   /* Create the fast flags file. */
   CreateFFlags(Version, LastVersion);
 
@@ -96,7 +96,7 @@ int8_t Install(char *Version, uint8_t CheckVersion) {
     DeleteVersion(LastVersion);
     free(LastVersion);
   }
-  
+
   /* Store the new checksums. */
   Checksums = FormatChecksums(Fetched);
   PwootieWriteEntry("checksums", Checksums);
@@ -113,7 +113,7 @@ error:
     free(Fetched->PackageList);
     free(Fetched);
   }
-  
+
   if (LastVersion)
     free(LastVersion);
 
