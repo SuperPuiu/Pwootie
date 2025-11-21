@@ -303,7 +303,7 @@ error:
  * @return -1 on failure and 0 on success. */
 int8_t SetupWine(uint8_t CheckExistence) {
   const char *WINE_INSTALL_DIR = "wine";
-  char *DownloadLink = "https://github.com/GloriousEggroll/proton-ge-custom/releases/download/GE-Proton10-17/GE-Proton10-17.tar.gz";
+  char *DownloadLink = "https://github.com/Kron4ek/Wine-Builds/releases/download/proton-10.0-3/wine-proton-10.0-3-x86.tar.xz";
   char *UpdateWine = PwootieReadEntry("update_wine");
   char *ForcedLink = PwootieReadEntry("wine_link");
   char WineName[256] = {0};
