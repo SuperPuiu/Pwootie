@@ -16,8 +16,15 @@ static int32_t Search(const char *PathName, const struct stat *sbuf, int32_t Typ
   unused(sbuf);
   unused(ftwb);
 
-  if ((strstr(PathName, "wine64") || strstr(PathName, "wine")) && Type == FTW_F) {
-    memcpy(NFTW_BinPath, PathName, strlen(PathName) + 1);
+  uint32_t PathLen = strlen(PathName);
+  uint32_t SrcIndex = PathLen;
+
+  while (PathName[SrcIndex] != '/')
+    SrcIndex--;
+  SrcIndex++;
+
+  if ((strncmp(PathName + SrcIndex, "wine64", 6) == 0 || strncmp(PathName + SrcIndex, "wine", 5) == 0) && Type == FTW_F) {
+    memcpy(NFTW_BinPath, PathName, PathLen + 1);
     return 1;
   }
 
@@ -369,7 +376,6 @@ int8_t SetupWine(uint8_t CheckExistence) {
   Path[HomeLength + InstallDirLength + WineNameLength + WineDirLength + 3] = '\0';
 
   /* Open file and download it. */
-  printf("%s\n", Path);
   TarFile = fopen(Path, "w");
 
   if (unlikely(!TarFile)) {
