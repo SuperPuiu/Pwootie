@@ -27,9 +27,10 @@ int main(int argc, char **argv) {
         goto exit;
       }
 
-      if (strcmp(argv[2], "wine") == 0)
+      if (strcmp(argv[2], "wine") == 0) {
         SetupWine(0);
-      else if (strcmp(argv[2], "studio") == 0)
+        SetupPrefix();
+      } else if (strcmp(argv[2], "studio") == 0)
         Install(StudioVersion, 0);
       else
         printf("[INFO]: Unknown reinstall option. (available options: wine, studio)\n");
