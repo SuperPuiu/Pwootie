@@ -24,7 +24,7 @@
 #define TEMP_PWOOTIE_FOLDER "/tmp/pwootie/"
 #define PWOOTIE_DATA        "PwootieData.txt"
 #define INSTALL_DIR         ".robloxstudio"
-#define PWOOTIE_VERSION     "0.1-Experimental"
+#define PWOOTIE_VERSION     "0.2-Experimental"
 
 #define unused(x) ((void) (x))
 
