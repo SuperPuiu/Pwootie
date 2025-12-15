@@ -167,6 +167,9 @@ EnvInfoStruct *FetchEnvInfo(char *StudioVersion) {
     case '6':
       EnvInfo->Renderer = "Vulkan";
       break;
+    default:
+      EnvInfo->Renderer = "Unknown";
+      break;
   }
 
   pclose(WineVersionFile);
