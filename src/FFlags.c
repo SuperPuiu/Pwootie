@@ -49,7 +49,7 @@ int8_t ApplyFFlag(char *restrict EntryName, char *restrict Data) {
   char BooleanData[6];
 
   if (!StrStart) {
-    printf("[ERROR]: Unable to find fast flag %s.", EntryName);
+    printf("[ERROR]: Unable to find fast flag %s.\n", EntryName);
     return -1;
   }
 
