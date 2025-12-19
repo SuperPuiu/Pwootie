@@ -548,6 +548,8 @@ void Run(char *restrict Argument, char *restrict Version) {
   if (Argument == NULL)
     Argument = "";
 
+  char *ArgDuplicate = strdup(Argument);
+
   /* Yeah well I can't put them next to the other char arrays. */
   char *WINE_EXEC = PwootieReadEntry("wine_binary");
   char *DEBUG_ENTRY = PwootieReadEntry("debug");
@@ -587,7 +589,7 @@ void Run(char *restrict Argument, char *restrict Version) {
   Executable[HomeLength] = Executable[HomeLength + InstallLen + 1] = Executable[HomeLength + InstallLen + VersionLen + 2] = '/';
 
   setenv(WINEPREFIX, Location, 1);
-  ExecProgram(WINE_EXEC, Silence, 1, Executable, Argument, NULL);
+  ExecProgram(WINE_EXEC, Silence, 1, Executable, ArgDuplicate, NULL);
 
   free(Executable);
   free(Location);
