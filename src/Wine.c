@@ -1,5 +1,3 @@
-#define _GNU_SOURCE
-
 #include <sys/stat.h>
 #include <Shared.h>
 #include <errno.h>
@@ -313,19 +311,11 @@ int8_t SetupWine(uint8_t CheckExistence) {
   char *DownloadLink = "https://github.com/vinegarhq/wine-builds/releases/download/10.16/vinegarhq-wine-10.16.tar.xz";
   char *UpdateWine = PwootieReadEntry("update_wine");
   char *ForcedLink = PwootieReadEntry("wine_link");
-  char WineName[256] = {0};
 
-  printf("[INFO]: Setting up wine.\n");
+  printf("[INFO]: Preparing to download WINE.\n");
 
   if (ForcedLink)
     DownloadLink = ForcedLink;
-
-  uint32_t DownloadLinkLength = strlen(DownloadLink), WineNameLength = 0;
-
-  for (uint32_t SrcIndex = DownloadLinkLength; SrcIndex > 0 && DownloadLink[SrcIndex] != '/'; SrcIndex--)
-    WineNameLength = DownloadLinkLength - SrcIndex;
-
-  memcpy(WineName, DownloadLink + (DownloadLinkLength - WineNameLength), WineNameLength + 1);
 
   if (UpdateWine) {
     if (strcmp(UpdateWine, "false") == 0 && CheckExistence == 1) {
@@ -340,10 +330,11 @@ int8_t SetupWine(uint8_t CheckExistence) {
   /* Unfortunately for me, the file is a tar.xz, which means that I'd either have to
    * introduce ANOTHER dependency to Pwootie only for this whole case, or call system().
    * Second choice sounds like the best choice to me. */
+  uint32_t WineNameLength = 128;
   uint32_t HomeLength = strlen(getenv("HOME")), InstallDirLength = strlen(INSTALL_DIR);
   uint32_t WineDirLength = strlen(WINE_INSTALL_DIR);
 
-  CURLcode Response;
+  ResponseStruct *Response = NULL;
 
   /* 3 for two additional slashes and one additional magic byte.
    * The extra 256 are for building the path to the wine_binary. */
@@ -370,40 +361,50 @@ int8_t SetupWine(uint8_t CheckExistence) {
     return 0;
   }
 
+  printf("Downloading %s.\n", DownloadLink);
+  Response = CurlDownloadNoFile(DownloadLink, Path);
+
+  if (unlikely(Response->Response != CURLE_OK)) {
+    Error("[ERROR]: Failed to download the tar file. (cURL error: %s)", ERR_STANDARD | ERR_NOEXIT, curl_easy_strerror(Response->Response));
+    goto error;
+  }
+
   memcpy(PathCopy, Path, Total);
 
-  memcpy(Path + HomeLength + InstallDirLength + WineDirLength + 3, WineName, WineNameLength);
+  if (WineNameLength < Response->FileNameSize) {
+    uint32_t SizeDifference = WineNameLength - Response->FileNameSize;
+
+    Total += SizeDifference;
+    PathCopy = realloc(PathCopy, sizeof(char) * Total);
+
+    if (!PathCopy)
+      Error("[FATAL]: Unable to realloc PathCopy during SetupWine call.", ERR_MEMORY);
+
+    Path = realloc(Path, sizeof(char) * Total);
+
+    if (!Path)
+      Error("[FATAL]: Unable to realloc Path during SetupWine call.", ERR_MEMORY);
+  }
+
+  WineNameLength = Response->FileNameSize;
+  memcpy(Path + HomeLength + InstallDirLength + WineDirLength + 3, Response->FileName, WineNameLength);
   Path[HomeLength + InstallDirLength + WineNameLength + WineDirLength + 3] = '\0';
 
-  /* Open file and download it. */
-  TarFile = fopen(Path, "w");
-
-  if (unlikely(!TarFile)) {
-    Error("[ERROR]: Failed to open TarFile which is required to download WINE.", ERR_STANDARD | ERR_NOEXIT);
-    goto error;
-  }
-
-  printf("[INFO]: Downloading %s.\n", DownloadLink);
-  Response = CurlDownload(TarFile, DownloadLink);
-  // Response = CURLE_OK;
-
-  if (unlikely(Response != CURLE_OK)) {
-    Error("[ERROR]: Failed to download the tar file. (cURL error: %s)", ERR_STANDARD | ERR_NOEXIT, curl_easy_strerror(Response));
-    goto error;
-  }
-
-  fclose(TarFile);
+  fclose(Response->FileStream);
+  Response->FileStream = NULL;
 
   /* im not going to memcpy this. */
-  printf("[INFO]: Unzipping new version.\n");
+  printf("Unzipping new version..\n");
   sprintf(Command, "tar -xvf %s -C %s > /dev/null 2>&1", Path, PathCopy);
   system(Command);
+  printf("Unzipped new version.\n");
 
   /* Remove zip file. */
   remove(Path);
 
   /* Write wine_binary entry. If wine64 binary can't be found, then throw an error. */
-  Path[HomeLength + InstallDirLength + WineNameLength + WineDirLength - 4] = '\0';
+  printf("Fetching new wine path.\n");
+  Path[HomeLength + InstallDirLength + WineNameLength + WineDirLength - strlen(".tar.xz")] = '\0';
   nftw(Path, Search, 10, FTW_DEPTH | FTW_MOUNT | FTW_PHYS);
 
   if (unlikely(NFTW_BinPath[0] == 0)) {
@@ -411,7 +412,7 @@ int8_t SetupWine(uint8_t CheckExistence) {
     goto error;
   }
 
-  printf("%s\n", NFTW_BinPath);
+  printf("New wine_binary path: %s\n", NFTW_BinPath);
   PwootieWriteEntry("wine_binary", NFTW_BinPath);
 
   /* Cleanup. */
@@ -422,8 +423,13 @@ int8_t SetupWine(uint8_t CheckExistence) {
   if (ForcedLink)
     free(ForcedLink);
 
-  return 0;
+  if (Response->FreeName)
+    free(Response->FileName);
+  free(Response);
 
+  printf("[INFO]: WINE installation finished!\n");
+
+  return 0;
 error:
   free(Path);
   free(PathCopy);
@@ -434,6 +440,16 @@ error:
 
   if (TarFile)
     fclose(TarFile);
+
+  if (Response) {
+    if (Response->FileStream)
+      fclose(Response->FileStream);
+
+    if (Response->FreeName)
+      free(Response->FileName);
+    free(Response);
+  }
+
   return -1;
 }
 
@@ -473,12 +489,12 @@ int8_t SetupPrefix() {
   setenv(WINEPREFIX, Location, 1);
 
   /* Install required dlls for studio to launch. Check status values. */
-  printf("[INFO]: Installing d3dx11_43.\n");
+  printf("Installing d3dx11_43..\n");
   Status = system("winetricks d3dx11_43 > /dev/null 2>&1");
   if (unlikely(Status != 0))
     Error("[FATAL]: winetricks failed to install d3dx11_43. Please try to manually install the component.", ERR_STANDARD | ERR_NOEXIT);
 
-  printf("[INFO]: Installing dxvk.\n");
+  printf("Installing dxvk..\n");
   Status = system("winetricks dxvk > /dev/null 2>&1");
   if (unlikely(Status != 0))
     Error("[FATAL]: winetricks failed to install dxvk. Please try to manually install the component.", ERR_STANDARD | ERR_NOEXIT);
@@ -487,8 +503,8 @@ int8_t SetupPrefix() {
     free(WineBinary);
 
   free(Location);
+  printf("[INFO]: Prefix setup finished!\n");
   return 0;
-
 error:
   if (FreePath)
     free(WineBinary);
