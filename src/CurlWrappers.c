@@ -1,14 +1,24 @@
 #include <Shared.h>
+#include <string.h>
+
 #define CURL_ARRAY_SIZE 32
 
-CURL *CurlHandle;
-CURL *CurlDownloadHandle;
-CURL *CurlDownloadArray[CURL_ARRAY_SIZE];
+typedef struct {
+  FILE *FileStream;
+  char *RemoteFileName, *DownloadPath;
+  uint32_t RemoteNameSize;
+} DownloadStruct;
+
+static CURL *CurlHandle;
+static CURL *CurlDownloadHandle;
+static CURL *CurlDownloadArray[CURL_ARRAY_SIZE];
 
 CURLM *CurlMulti;
 
-size_t WriteMemoryCallback  (void *Contents, size_t Size, size_t nmemb, void *userp);
-size_t WriteFileCallback    (void *Contents, size_t Size, size_t nmemb, FILE *Stream);
+static size_t WriteMemoryCallback  (void *Contents, size_t Size, size_t DataSize, void *UserPointer);
+static size_t WriteFileCallback    (void *Contents, size_t _Size, size_t DataSize, void *DownloadInfo);
+static size_t ParseDownloadHeader  (void *HeaderPtr, size_t Size, size_t DataSize, void *Info);
+static size_t WriteFileCallbackSimple(void *Contents, size_t Size, size_t nmemb, void *FileStream);
 
 void SetupHandles() {
   CurlHandle = curl_easy_init(), CurlDownloadHandle = curl_easy_init();
@@ -20,14 +30,15 @@ void SetupHandles() {
   curl_easy_setopt(CurlDownloadHandle, CURLOPT_FOLLOWLOCATION, 1L);
   curl_easy_setopt(CurlDownloadHandle, CURLOPT_WRITEFUNCTION, WriteFileCallback);
   curl_easy_setopt(CurlDownloadHandle, CURLOPT_USERAGENT, "PwootieDownload/1.0");
-  
+  curl_easy_setopt(CurlDownloadHandle, CURLOPT_HEADERFUNCTION, ParseDownloadHeader);
+
   CurlMulti = curl_multi_init();
 
   for (uint32_t CurrentIndex = 0; CurrentIndex < CURL_ARRAY_SIZE; CurrentIndex++) {
     CurlDownloadArray[CurrentIndex] = curl_easy_init();
 
     curl_easy_setopt(CurlDownloadArray[CurrentIndex], CURLOPT_FOLLOWLOCATION, 1L);
-    curl_easy_setopt(CurlDownloadArray[CurrentIndex], CURLOPT_WRITEFUNCTION, WriteFileCallback);
+    curl_easy_setopt(CurlDownloadArray[CurrentIndex], CURLOPT_WRITEFUNCTION, WriteFileCallbackSimple);
     curl_easy_setopt(CurlDownloadArray[CurrentIndex], CURLOPT_USERAGENT, "PwootieDownload/1.0");
   }
 }
@@ -69,19 +80,121 @@ int8_t CurlMultiSetup(FILE **Files, char **Links, uint16_t Total) {
   return 0;
 }
 
+static int8_t GetNameFromContent(char const *ContentDisposition, DownloadStruct *StructPtr) {
+  char const *Key = "filename=";
+  char *Value = NULL;
+  uint16_t SrcIndex = 0;
+
+  Value = strcasestr(ContentDisposition, Key);
+
+  if (unlikely(!Value)) {
+    Error("[ERROR]: No key value found in Content-disposition.", ERR_STANDARD | ERR_NOEXIT);
+    return -1;
+  }
+
+  /* Move to the value's content. */
+  Value += strlen(Key);
+
+  for (; Value[SrcIndex] != '\0' && Value[SrcIndex] != ';' && Value[SrcIndex] != '\n' && Value[SrcIndex] != '\r'; SrcIndex++) {
+    if (StructPtr->RemoteNameSize == SrcIndex) {
+      StructPtr->RemoteNameSize *= 2;
+      StructPtr->RemoteFileName = realloc(StructPtr->RemoteFileName, StructPtr->RemoteNameSize * sizeof(char));
+
+      if (unlikely(!StructPtr->RemoteFileName))
+        Error("[FATAL]: Unable to realloc RemoteFileName.", ERR_MEMORY);
+    }
+
+    StructPtr->RemoteFileName[SrcIndex] = Value[SrcIndex];
+  }
+
+  StructPtr->RemoteFileName[SrcIndex] = '\0';
+
+  return 0;
+}
+
+static size_t ParseDownloadHeader (void *HeaderPtr, size_t Size, size_t DataSize, void *Info) {
+  const size_t RealSize = Size * DataSize;
+  const char *Header = HeaderPtr;
+  const char *Tag = "Content-disposition:";
+  DownloadStruct *DownloadInfo = Info;
+
+  if (DownloadInfo->FileStream)
+    return RealSize;
+
+  if (strncasecmp(Header, Tag, strlen(Tag)) != 0)
+    return RealSize;
+
+  if (unlikely(GetNameFromContent(Header + strlen(Tag), DownloadInfo) == -1))
+    Error("Failed to get any type of remote name.\n", ERR_STANDARD | ERR_NOEXIT);
+  printf("Remote file name: %s\n", DownloadInfo->RemoteFileName);
+
+  return RealSize;
+}
+
 CURLcode CurlDownload(FILE *File, char *WithURL) {
+  DownloadStruct Temp = {
+    .FileStream = File
+  };
+
   curl_easy_setopt(CurlDownloadHandle, CURLOPT_URL, WithURL);
-  curl_easy_setopt(CurlDownloadHandle, CURLOPT_WRITEDATA, File);
+  curl_easy_setopt(CurlDownloadHandle, CURLOPT_WRITEDATA, &Temp);
+  curl_easy_setopt(CurlDownloadHandle, CURLOPT_HEADERDATA, &Temp);
   return curl_easy_perform(CurlDownloadHandle);
 }
 
-size_t WriteFileCallback(void *Contents, size_t Size, size_t nmemb, FILE *Stream) {
-  return fwrite(Contents, Size, nmemb, Stream); /* Written bytes. */
+ResponseStruct* CurlDownloadNoFile(char *WithURL, char *DownloadPath) {
+  DownloadStruct Temp = {
+    .RemoteNameSize = 1,
+    .RemoteFileName = malloc(sizeof(char)),
+    .DownloadPath = DownloadPath
+  };
+
+  ResponseStruct *Response = malloc(sizeof(ResponseStruct));
+
+  curl_easy_setopt(CurlDownloadHandle, CURLOPT_URL, WithURL);
+  curl_easy_setopt(CurlDownloadHandle, CURLOPT_WRITEDATA, &Temp);
+  curl_easy_setopt(CurlDownloadHandle, CURLOPT_HEADERDATA, &Temp);
+
+  Response->Response = curl_easy_perform(CurlDownloadHandle);
+  Response->FileStream = Temp.FileStream;
+  Response->FileNameSize = Temp.RemoteNameSize == 1 ? strlen(Temp.RemoteFileName) : Temp.RemoteNameSize;
+  Response->FileName = Temp.RemoteFileName;
+  Response->FreeName = Temp.RemoteNameSize != 1;
+  return Response;
 }
 
-size_t WriteMemoryCallback(void *Contents, size_t Size, size_t nmemb, void *userp) {
-  size_t RequiredSize = Size * nmemb;
-  MemoryStruct *Memory = (MemoryStruct *)userp;
+static size_t WriteFileCallback(void *Contents, size_t Size, size_t nmemb, void *DownloadInfo) {
+  DownloadStruct *Info = DownloadInfo;
+
+  if (!Info->FileStream) {
+    char TempBuffer[PATH_MAX];
+    uint32_t DownloadPathLen = strlen(Info->DownloadPath);
+
+    if (Info->RemoteNameSize == 1) {
+      free(Info->RemoteFileName);
+
+      Info->RemoteFileName = "temp";
+      Info->RemoteNameSize = 0;
+    }
+
+    memcpy(TempBuffer, Info->DownloadPath, DownloadPathLen);
+    memcpy(TempBuffer + DownloadPathLen, Info->RemoteFileName, strlen(Info->RemoteFileName) + 1);
+    Info->FileStream = fopen(TempBuffer, "w");
+
+    if (unlikely(!Info->FileStream))
+      Error("[FATAL]: Unable to open %s for download.", ERR_STANDARD, TempBuffer);
+  }
+
+  return fwrite(Contents, Size, nmemb, Info->FileStream); /* Written bytes. */
+}
+
+static size_t WriteFileCallbackSimple(void *Contents, size_t Size, size_t nmemb, void *FileStream) {
+  return fwrite(Contents, Size, nmemb, FileStream);
+}
+
+static size_t WriteMemoryCallback(void *Contents, size_t Size, size_t DataSize, void *UserPointer) {
+  size_t RequiredSize = Size * DataSize;
+  MemoryStruct *Memory = (MemoryStruct *)UserPointer;
 
   char *Pointer = realloc(Memory->Memory, Memory->Size + RequiredSize + 1);
 
