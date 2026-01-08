@@ -1,6 +1,6 @@
 BUILD_DIR = bin
 
-CFLAGS = -Wall -Wextra -Wshadow -o3 -g
+CFLAGS = -D_GNU_SOURCE -Wall -Wextra -Wshadow -o3 -g
 LIBS = -lcurl -lzip
 
 SRCS = $(wildcard src/*.c)
