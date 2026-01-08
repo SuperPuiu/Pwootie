@@ -1,5 +1,4 @@
-#ifndef __UTIL_H__
-#define __UTIL_H__
+#pragma once
 #define _XOPEN_SOURCE 700
 
 #include <stdio.h>
@@ -38,6 +37,14 @@ typedef struct MemoryStruct {
   char    *Memory;
   size_t  Size;
 } MemoryStruct;
+
+typedef struct ResponseStruct {
+  FILE *FileStream;
+  char *FileName;
+  uint32_t FileNameSize;
+  uint8_t FreeName:1;
+  CURLcode Response;
+} ResponseStruct;
 
 typedef struct EnvInfoStruct {
   char *PwootieVersion, *Renderer;
@@ -107,13 +114,14 @@ void   Error(char *String, uint8_t Flags, ...);
 void   SetupSignalHandler();
 
 /* CurlWrappers.c */
-void          SetupHandles();
-void          ResetMultiCurl(uint16_t Total);
-int32_t       CurlGetHandleFromMessage(CURLMsg *Message);
-int8_t        CurlMultiSetup(FILE **Files, char **Links, uint16_t Total);
-CURLcode      CurlDownload(FILE *File, char *WithURL);
-CURLcode      CurlGet(MemoryStruct *Chunk, char *WithURL);
-extern CURLM  *CurlMulti;
+void            SetupHandles();
+void            ResetMultiCurl(uint16_t Total);
+int32_t         CurlGetHandleFromMessage(CURLMsg *Message);
+int8_t          CurlMultiSetup(FILE **Files, char **Links, uint16_t Total);
+CURLcode        CurlDownload(FILE *File, char *WithURL);
+CURLcode        CurlGet(MemoryStruct *Chunk, char *WithURL);
+ResponseStruct* CurlDownloadNoFile(char *WithURL, char *DownloadPath);
+extern CURLM    *CurlMulti;
 
 /* FFlags.c */
 int8_t  ApplyFFlag(char *restrict EntryName, char *restrict Data);
@@ -126,5 +134,3 @@ void    ExitFFlags();
 
 /* Main.c */
 extern char *CDN_URL;
-
-#endif
