@@ -458,22 +458,34 @@ error:
 int8_t SetupPrefix() {
   printf("[INFO]: Setting up prefix.\n");
 
-  char *WineBinary = PwootieReadEntry("wine_binary");
+		const char *D3DX11_43 = "winetricks d3dx11_43 > /dev/null 2>&1";
+		const char *DXVK = "winetricks dxvk > /dev/null 2>&1";
+
+		char *DEBUG_ENTRY = PwootieReadEntry("debug");
+  char *WINE_BINARY = PwootieReadEntry("wine_binary");
   uint8_t FreePath = 1;
 
-  if (unlikely(!WineBinary)) {
-    WineBinary = "";
+  if (unlikely(!WINE_BINARY)) {
+    WINE_BINARY = "";
     FreePath = 0;
   }
 
-  setenv("WINE", WineBinary, 1);
+		if (DEBUG_ENTRY) {
+    if (strcmp(DEBUG_ENTRY, "true") == 0) {
+						D3DX11_43 = "winetricks d3dx11_43";
+						DXVK = "winetricks dxvk";
+				}
+
+    free(DEBUG_ENTRY);
+  }
+
+  setenv("WINE", WINE_BINARY, 1);
 
   if (unlikely(system("winetricks --version > /dev/null 2>&1") != 0)) {
-    Error("[Fatal]: Unable to run winetricks --version. Is winetricks installed?", ERR_STANDARD | ERR_NOEXIT);
+    Error("[FATAL]: Unable to run winetricks --version. Is winetricks installed?", ERR_STANDARD | ERR_NOEXIT);
     goto error;
   }
 
-  int32_t Status;
   /* Is all this string building needed? */
   char *Location = GetPrefixPath(0);
 
@@ -490,24 +502,22 @@ int8_t SetupPrefix() {
 
   /* Install required dlls for studio to launch. Check status values. */
   printf("Installing d3dx11_43..\n");
-  Status = system("winetricks d3dx11_43 > /dev/null 2>&1");
-  if (unlikely(Status != 0))
+  if (unlikely(system(D3DX11_43) != 0))
     Error("[FATAL]: winetricks failed to install d3dx11_43. Please try to manually install the component.", ERR_STANDARD | ERR_NOEXIT);
 
   printf("Installing dxvk..\n");
-  Status = system("winetricks dxvk > /dev/null 2>&1");
-  if (unlikely(Status != 0))
+  if (unlikely(system(DXVK) != 0))
     Error("[FATAL]: winetricks failed to install dxvk. Please try to manually install the component.", ERR_STANDARD | ERR_NOEXIT);
 
   if (FreePath)
-    free(WineBinary);
+    free(WINE_BINARY);
 
   free(Location);
   printf("[INFO]: Prefix setup finished!\n");
   return 0;
 error:
   if (FreePath)
-    free(WineBinary);
+    free(WINE_BINARY);
 
   free(Location);
   return -1;
@@ -566,7 +576,6 @@ void Run(char *restrict Argument, char *restrict Version) {
 
   char *ArgDuplicate = strdup(Argument);
 
-  /* Yeah well I can't put them next to the other char arrays. */
   char *WINE_EXEC = PwootieReadEntry("wine_binary");
   char *DEBUG_ENTRY = PwootieReadEntry("debug");
   uint8_t Silence = 1;
