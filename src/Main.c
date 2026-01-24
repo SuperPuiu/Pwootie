@@ -10,14 +10,15 @@ int main(int argc, char **argv) {
   VersionData Data = {NULL, NULL, NULL};
 
   SetupHandles();
-  GetVersionData(&Data);
 
-  char *StudioVersion = Data.ClientVersionUpload;
-  char *ForcedVersion = PwootieReadEntry("forced_version");
-  char *ForcedCDN     = PwootieReadEntry("cdn");
+  char *StudioVersion 	= NULL;
+
+		char *CurrentVersion	= PwootieReadEntry("version");
+  char *ForcedVersion 	= PwootieReadEntry("forced_version");
+  char *ForcedCDN     	= PwootieReadEntry("cdn");
 
   /* If we have a ForcedVersion, then use that. */
-  StudioVersion = ForcedVersion ? ForcedVersion : StudioVersion;
+  StudioVersion = ForcedVersion ? ForcedVersion : CurrentVersion;
   CDN_URL = ForcedCDN ? ForcedCDN : CDN_URL;
 
   if (argc > 1) {
@@ -30,10 +31,16 @@ int main(int argc, char **argv) {
       if (strcmp(argv[2], "wine") == 0) {
         SetupWine(0);
         SetupPrefix();
-      } else if (strcmp(argv[2], "studio") == 0)
+      } else if (strcmp(argv[2], "studio") == 0) {
+								if (!ForcedVersion) {
+										GetVersionData(&Data);
+										StudioVersion = Data.ClientVersionUpload;
+								}
+
         Install(StudioVersion, 0);
-      else
-        printf("[INFO]: Unknown reinstall option. (available options: wine, studio)\n");
+						} else {
+								printf("[INFO]: Unknown reinstall option. (available options: wine, studio)\n");
+						}
 
       goto exit;
     } else if (strcmp(argv[1], "fflags") == 0) {
@@ -125,6 +132,11 @@ int main(int argc, char **argv) {
     /* The first argument can be the token we need to log into studio. */
     Run(argv[1], StudioVersion);
   } else {
+				if (!ForcedVersion) {
+						GetVersionData(&Data);
+						StudioVersion = Data.ClientVersionUpload;
+				}
+
     Install(StudioVersion, 1);
     Run(NULL, StudioVersion);
   }
@@ -145,6 +157,9 @@ exit:
 
   if (ForcedCDN)
     free(ForcedCDN);
+
+		if (CurrentVersion)
+				free(CurrentVersion);
 
   curl_global_cleanup();
   PwootieExit();
