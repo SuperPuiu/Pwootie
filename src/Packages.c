@@ -11,506 +11,506 @@
 
 /* This is ugly. */
 void ChecksumToString(uint8_t *restrict Checksum, char *restrict Buffer) {
-  uint8_t BufPosition = 0;
-  char l_Buf[3];
+		uint8_t BufPosition = 0;
+		char l_Buf[3];
 
-  for (uint8_t i = 0; i < 16; i++) {
-    sprintf(l_Buf, "%02x", Checksum[i]);
-    memcpy(Buffer + BufPosition, l_Buf, 2);
-    BufPosition += 2;
-  }
+		for (uint8_t i = 0; i < 16; i++) {
+				sprintf(l_Buf, "%02x", Checksum[i]);
+				memcpy(Buffer + BufPosition, l_Buf, 2);
+				BufPosition += 2;
+		}
 
-  Buffer[BufPosition] = '\0';
+		Buffer[BufPosition] = '\0';
 }
 
 /* Prototypes are found in Installer.c */
 char *FormatChecksums(FetchStruct *Fetched) {
-  const uint8_t BufferSize = 32;
-  uint32_t SrcIndex = 0;
+		const uint8_t BufferSize = 32;
+		uint32_t SrcIndex = 0;
 
-  /* 33 is the size of the Checksum buffer. We add another Fetched->TotalPackages for the semicolons. */
-  char *Checksums = malloc((Fetched->TotalPackages * BufferSize + Fetched->TotalPackages) * sizeof(char));
+		/* 33 is the size of the Checksum buffer. We add another Fetched->TotalPackages for the semicolons. */
+		char *Checksums = malloc((Fetched->TotalPackages * BufferSize + Fetched->TotalPackages) * sizeof(char));
 
-  if (!Checksums)
-    Error("[FATAL]: Unable to allocate Checksums buffer during FormatChecksums call.", ERR_MEMORY);
+		if (!Checksums)
+				Error("[FATAL]: Unable to allocate Checksums buffer during FormatChecksums call.", ERR_MEMORY);
 
-  for (; SrcIndex < Fetched->TotalPackages; SrcIndex++) {
-    memcpy(Checksums + (SrcIndex * (BufferSize + 1)), Fetched->PackageList[SrcIndex].Checksum, BufferSize);
-    Checksums[SrcIndex * (BufferSize + 1) + BufferSize] = ';';
-  }
+		for (; SrcIndex < Fetched->TotalPackages; SrcIndex++) {
+				memcpy(Checksums + (SrcIndex * (BufferSize + 1)), Fetched->PackageList[SrcIndex].Checksum, BufferSize);
+				Checksums[SrcIndex * (BufferSize + 1) + BufferSize] = ';';
+		}
 
-  Checksums[SrcIndex * (BufferSize + 1)] = '\0';
+		Checksums[SrcIndex * (BufferSize + 1)] = '\0';
 
-  return Checksums;
+		return Checksums;
 }
 
 int8_t InstallPackages(FetchStruct *Fetched, char *Version) {
-  CURLcode  Response;
-  FILE      *Installer;
+		CURLcode  Response;
+		FILE      *Installer;
 
-  struct zip_stat *ZipStat = NULL;
+		struct zip_stat *ZipStat = NULL;
 
-  uint32_t SettingsLen = strlen(APP_SETTINGS_DATA), LengthVersion = strlen(Version);
-  uint32_t InstallerLength = strlen(OFFICIAL_INSTALLER), TempDirLength = strlen(TEMP_PWOOTIE_FOLDER);
-  uint32_t InstallDirLength = strlen(INSTALL_DIR), HomeLength = strlen(getenv("HOME"));
-  uint32_t InstallDirTotal = HomeLength + InstallDirLength + LengthVersion + 3 + 253;
-  uint32_t AppSettingsLen = strlen(APP_SETTINGS);
+		uint32_t SettingsLen = strlen(APP_SETTINGS_DATA), LengthVersion = strlen(Version);
+		uint32_t InstallerLength = strlen(OFFICIAL_INSTALLER), TempDirLength = strlen(TEMP_PWOOTIE_FOLDER);
+		uint32_t InstallDirLength = strlen(INSTALL_DIR), HomeLength = strlen(getenv("HOME"));
+		uint32_t InstallDirTotal = HomeLength + InstallDirLength + LengthVersion + 3 + 253;
+		uint32_t AppSettingsLen = strlen(APP_SETTINGS);
 
-  /* The 'Official' string is built inside of this function only to reuse it later. Same for 'InstallDir'. */
-  char **Instructions   = NULL;
-  char *Official        = malloc((InstallerLength + TempDirLength + 64 + 1) * sizeof(char));
-  char *InstallDir      = malloc((InstallDirTotal) * sizeof(char));
-  char *FullURL         = BuildString(4, CDN_URL, Version, "-", OFFICIAL_INSTALLER);
+		/* The 'Official' string is built inside of this function only to reuse it later. Same for 'InstallDir'. */
+		char **Instructions   = NULL;
+		char *Official        = malloc((InstallerLength + TempDirLength + 64 + 1) * sizeof(char));
+		char *InstallDir      = malloc((InstallDirTotal) * sizeof(char));
+		char *FullURL         = BuildString(4, CDN_URL, Version, "-", OFFICIAL_INSTALLER);
 
-  if (!Official)
-    Error("[FATAL]: Unable to allocate Official during InstallPackages call.", ERR_MEMORY);
-  else if (!InstallDir)
-    Error("[FATAL]: Unable to allocate InstallDir during InstallPackages call.", ERR_MEMORY);
+		if (!Official)
+				Error("[FATAL]: Unable to allocate Official during InstallPackages call.", ERR_MEMORY);
+		else if (!InstallDir)
+				Error("[FATAL]: Unable to allocate InstallDir during InstallPackages call.", ERR_MEMORY);
 
-  /* Construct official downloaded path. */
-  memcpy(Official, TEMP_PWOOTIE_FOLDER, TempDirLength);
-  memcpy(Official + TempDirLength, OFFICIAL_INSTALLER, InstallerLength);
-  Official[InstallerLength + TempDirLength] = '\0';
+		/* Construct official downloaded path. */
+		memcpy(Official, TEMP_PWOOTIE_FOLDER, TempDirLength);
+		memcpy(Official + TempDirLength, OFFICIAL_INSTALLER, InstallerLength);
+		Official[InstallerLength + TempDirLength] = '\0';
 
-  /* Construct installation directory path. */
-  memcpy(InstallDir, getenv("HOME"), HomeLength);
-  memcpy(InstallDir + HomeLength + 1, INSTALL_DIR, InstallDirLength);
-  memcpy(InstallDir + HomeLength + InstallDirLength + 2, Version, LengthVersion);
-  InstallDir[HomeLength] = InstallDir[HomeLength + InstallDirLength + 1] = InstallDir[HomeLength + InstallDirLength + LengthVersion + 2] = '/';
-  InstallDir[HomeLength + InstallDirLength + LengthVersion + 3] = '\0';
+		/* Construct installation directory path. */
+		memcpy(InstallDir, getenv("HOME"), HomeLength);
+		memcpy(InstallDir + HomeLength + 1, INSTALL_DIR, InstallDirLength);
+		memcpy(InstallDir + HomeLength + InstallDirLength + 2, Version, LengthVersion);
+		InstallDir[HomeLength] = InstallDir[HomeLength + InstallDirLength + 1] = InstallDir[HomeLength + InstallDirLength + LengthVersion + 2] = '/';
+		InstallDir[HomeLength + InstallDirLength + LengthVersion + 3] = '\0';
 
-  /* Download installer in TEMP_PWOOTIE_FOLDER folder. */
-  Installer = fopen(Official, "w+");
+		/* Download installer in TEMP_PWOOTIE_FOLDER folder. */
+		Installer = fopen(Official, "w+");
 
-  if (unlikely(!Installer)) {
-    Error("[ERROR]: Unable to create RobloxStudioInstaller file during InstallPackages call. (Path: %s)", ERR_STANDARD | ERR_NOEXIT, Official);
-    goto error;
-  }
+		if (unlikely(!Installer)) {
+				Error("[ERROR]: Unable to create RobloxStudioInstaller file during InstallPackages call. (Path: %s)", ERR_STANDARD | ERR_NOEXIT, Official);
+				goto error;
+		}
 
-  Response = CurlDownload(Installer, FullURL);
+		Response = CurlDownload(Installer, FullURL);
 
-  if (unlikely(Response != CURLE_OK)) {
-    Error("[ERROR]: Failed to download RobloxStudioInstaller.exe. (cURL error: %s)\n", ERR_STANDARD | ERR_NOEXIT, curl_easy_strerror(Response));
-    goto error;
-  }
+		if (unlikely(Response != CURLE_OK)) {
+				Error("[ERROR]: Failed to download RobloxStudioInstaller.exe. (cURL error: %s)\n", ERR_STANDARD | ERR_NOEXIT, curl_easy_strerror(Response));
+				goto error;
+		}
 
-  /* For this step, we have two ways of proceeding:
-   * 1. Hardcode a 2D array of chars with where the zip files should be extracted.
-   * CONS: If ROBLOX decided to change locations or add new packages we'll have to update the hardcoded array.
-   * PROS: Easier to implement.
-   * 2. Get extraction locations directly from RobloxStudioInstaller.exe:
-   * CONS: More difficult to implement.
-   * PROS: We're fixing the problem we'd have with the first solution.
-   *
-   * I found second solution by looking at the source code for Vinegar. Big thanks to them.
-   * I found first implementation by looking at the source code for Cork. Big thanks to them as well.
-   * Because we're going with the second solution, you may find the implementation in Instructions.c. */
+		/* For this step, we have two ways of proceeding:
+			* 1. Hardcode a 2D array of chars with where the zip files should be extracted.
+			* CONS: If ROBLOX decided to change locations or add new packages we'll have to update the hardcoded array.
+			* PROS: Easier to implement.
+			* 2. Get extraction locations directly from RobloxStudioInstaller.exe:
+			* CONS: More difficult to implement.
+			* PROS: We're fixing the problem we'd have with the first solution.
+			*
+			* I found second solution by looking at the source code for Vinegar. Big thanks to them.
+			* I found first implementation by looking at the source code for Cork. Big thanks to them as well.
+			* Because we're going with the second solution, you may find the implementation in Instructions.c. */
 
-  Instructions = ExtractInstructions(Installer, Fetched);
+		Instructions = ExtractInstructions(Installer, Fetched);
 
-  /* Initialize all directories we got after extracting the instructions. */
-  for (uint8_t Index = 0; Index < Fetched->TotalPackages; Index++) {
-    /* Skip empty instructions. */
-    if (Instructions[Index][0] == '\0')
-      continue;
-    uint32_t InstructionLength = strlen(Instructions[Index]);
+		/* Initialize all directories we got after extracting the instructions. */
+		for (uint8_t Index = 0; Index < Fetched->TotalPackages; Index++) {
+				/* Skip empty instructions. */
+				if (Instructions[Index][0] == '\0')
+						continue;
+				uint32_t InstructionLength = strlen(Instructions[Index]);
 
-    /* Add the required path to construct. Add +1 to the length because we want to include the NULL terminator. */
-    memcpy(InstallDir + HomeLength + InstallDirLength + LengthVersion + 3, Instructions[Index], InstructionLength + 1);
+				/* Add the required path to construct. Add +1 to the length because we want to include the NULL terminator. */
+				memcpy(InstallDir + HomeLength + InstallDirLength + LengthVersion + 3, Instructions[Index], InstructionLength + 1);
 
-    /* Build the directory tree. */
-    BuildDirectoryTree(InstallDir);
-  }
+				/* Build the directory tree. */
+				BuildDirectoryTree(InstallDir);
+		}
 
-  /* Why can't just AppSettings.xml be packaged in a zip file? I don't know! */
-  memcpy(InstallDir + HomeLength + InstallDirLength + LengthVersion + 3, APP_SETTINGS, AppSettingsLen);
-  InstallDir[HomeLength + InstallDirLength + LengthVersion + AppSettingsLen + 3] = '\0';
+		/* Why can't just AppSettings.xml be packaged in a zip file? I don't know! */
+		memcpy(InstallDir + HomeLength + InstallDirLength + LengthVersion + 3, APP_SETTINGS, AppSettingsLen);
+		InstallDir[HomeLength + InstallDirLength + LengthVersion + AppSettingsLen + 3] = '\0';
 
-  FILE *AppSettings = fopen(InstallDir, "w");
-  if (unlikely(!AppSettings)) {
-    Error("[ERROR]: Failed to create AppSettings durign InstallPackages call.", ERR_STANDARD | ERR_NOEXIT);
-    goto error;
-  }
+		FILE *AppSettings = fopen(InstallDir, "w");
+		if (unlikely(!AppSettings)) {
+				Error("[ERROR]: Failed to create AppSettings durign InstallPackages call.", ERR_STANDARD | ERR_NOEXIT);
+				goto error;
+		}
 
-  fwrite(APP_SETTINGS_DATA, sizeof(char), SettingsLen, AppSettings);
-  fclose(AppSettings);
+		fwrite(APP_SETTINGS_DATA, sizeof(char), SettingsLen, AppSettings);
+		fclose(AppSettings);
 
-  /* Decompress all zips downloaded during DownloadPackages call. */
-  for (uint8_t i = 0; i < Fetched->TotalPackages; i++) {
-    uint32_t        ZipLength = strlen(Fetched->PackageList[i].Name), InstructionLength = strlen(Instructions[i]);
-    int32_t         ErrorCode = 0;
-    zip_t           *ZipPointer;
-    zip_error_t     ZipError;
-    zip_file_t      *FileDescriptor;
+		/* Decompress all zips downloaded during DownloadPackages call. */
+		for (uint8_t i = 0; i < Fetched->TotalPackages; i++) {
+				uint32_t        ZipLength = strlen(Fetched->PackageList[i].Name), InstructionLength = strlen(Instructions[i]);
+				int32_t         ErrorCode = 0;
+				zip_t           *ZipPointer;
+				zip_error_t     ZipError;
+				zip_file_t      *FileDescriptor;
 
-    char *Memory;
-    FILE *NewFile;
+				char *Memory;
+				FILE *NewFile;
 
-    ZipStat = calloc(256, sizeof(int));
+				ZipStat = calloc(256, sizeof(int));
 
-    if (!ZipStat)
-      Error("[FATAL]: Unable to allocate ZipStat during InstallPackages call.", ERR_MEMORY);
+				if (!ZipStat)
+						Error("[FATAL]: Unable to allocate ZipStat during InstallPackages call.", ERR_MEMORY);
 
-    if (unlikely(!ZipStat)) {
-      Error("[ERROR]: Failed to allocate ZipStat for package indexed %i during InstallPackages call.", ERR_STANDARD | ERR_NOEXIT, i);
-      goto error;
-    }
+				if (unlikely(!ZipStat)) {
+						Error("[ERROR]: Failed to allocate ZipStat for package indexed %i during InstallPackages call.", ERR_STANDARD | ERR_NOEXIT, i);
+						goto error;
+				}
 
-    /* Construct required paths. Official path becomes the path to which the zip file is located. */
-    memcpy(InstallDir + HomeLength + InstallDirLength + LengthVersion + 3, Instructions[i], InstructionLength + 1);
-    memcpy(Official + TempDirLength, Fetched->PackageList[i].Name, ZipLength);
-    Official[TempDirLength + ZipLength] = '\0';
+				/* Construct required paths. Official path becomes the path to which the zip file is located. */
+				memcpy(InstallDir + HomeLength + InstallDirLength + LengthVersion + 3, Instructions[i], InstructionLength + 1);
+				memcpy(Official + TempDirLength, Fetched->PackageList[i].Name, ZipLength);
+				Official[TempDirLength + ZipLength] = '\0';
 
-    ZipPointer = zip_open(Official, 0, &ErrorCode);
+				ZipPointer = zip_open(Official, 0, &ErrorCode);
 
-    if (unlikely(!ZipPointer)) {
-      zip_error_init_with_code(&ZipError, ErrorCode);
-      Error("[ERROR]: Unable to open zip file %s. (zip error: %s)", ERR_STANDARD | ERR_NOEXIT, Official, zip_error_strerror(&ZipError));
-      goto error;
-    }
+				if (unlikely(!ZipPointer)) {
+						zip_error_init_with_code(&ZipError, ErrorCode);
+						Error("[ERROR]: Unable to open zip file %s. (zip error: %s)", ERR_STANDARD | ERR_NOEXIT, Official, zip_error_strerror(&ZipError));
+						goto error;
+				}
 
-    /* Read all entries within the zip. */
-    int64_t TotalEntries = zip_get_num_entries(ZipPointer, 0);
+				/* Read all entries within the zip. */
+				int64_t TotalEntries = zip_get_num_entries(ZipPointer, 0);
 
-    /* Loop over the entries. */
-    for (int64_t Entry = 0; Entry < TotalEntries; Entry++) {
-      const char *Name = zip_get_name(ZipPointer, Entry, 0);
-      uint32_t NameLength = strlen(Name);
-      uint8_t Directory;
+				/* Loop over the entries. */
+				for (int64_t Entry = 0; Entry < TotalEntries; Entry++) {
+						const char *Name = zip_get_name(ZipPointer, Entry, 0);
+						uint32_t NameLength = strlen(Name);
+						uint8_t Directory;
 
-      if (unlikely(!Name)) {
-        Error("[ERROR]: Error occured while extracting %li entry from %s.", ERR_STANDARD | ERR_NOEXIT, Entry, Official);
-        goto error;
-      }
+						if (unlikely(!Name)) {
+								Error("[ERROR]: Error occured while extracting %li entry from %s.", ERR_STANDARD | ERR_NOEXIT, Entry, Official);
+								goto error;
+						}
 
-      Directory = Name[NameLength - 1] == 92; /* Is the entry a directory? */
+						Directory = Name[NameLength - 1] == 92; /* Is the entry a directory? */
 
-      /* Grrr, windows paths.. */
-      ConvertPath((char*)Name);
+						/* Grrr, windows paths.. */
+						ConvertPath((char*)Name);
 
-      /* If the entry is a directory (only directories end with /) then we'll build the directory tree. */
-      if (Directory) {
-        memcpy(InstallDir + HomeLength + InstallDirLength + LengthVersion + InstructionLength + 2, Name, NameLength + 1);
+						/* If the entry is a directory (only directories end with /) then we'll build the directory tree. */
+						if (Directory) {
+								memcpy(InstallDir + HomeLength + InstallDirLength + LengthVersion + InstructionLength + 2, Name, NameLength + 1);
 
-        BuildDirectoryTree(InstallDir);
-        continue;
-      }
+								BuildDirectoryTree(InstallDir);
+								continue;
+						}
 
-      /* Needed for entry size. */
-      zip_stat_index(ZipPointer, Entry, 0, ZipStat);
-      Memory = calloc(ZipStat->size, sizeof(char));
+						/* Needed for entry size. */
+						zip_stat_index(ZipPointer, Entry, 0, ZipStat);
+						Memory = calloc(ZipStat->size, sizeof(char));
 
-      if (unlikely(!Memory))
-        Error("[FATAL]: Unable to allocate Memory variable during InstallPackages call.", ERR_MEMORY);
+						if (unlikely(!Memory))
+								Error("[FATAL]: Unable to allocate Memory variable during InstallPackages call.", ERR_MEMORY);
 
-      /* Include string terminator. */
-      memcpy(InstallDir + HomeLength + InstallDirLength + InstructionLength + LengthVersion + 3, Name, NameLength + 1);
-      NewFile = fopen(InstallDir, "wb");
+						/* Include string terminator. */
+						memcpy(InstallDir + HomeLength + InstallDirLength + InstructionLength + LengthVersion + 3, Name, NameLength + 1);
+						NewFile = fopen(InstallDir, "wb");
 
-      if (unlikely(!NewFile)) {
-        Error("[ERROR]: Unable to open a file to write contents.", ERR_STANDARD | ERR_NOEXIT);
-        Error(InstallDir, ERR_STANDARD | ERR_NOEXIT);
-        goto error;
-      }
+						if (unlikely(!NewFile)) {
+								Error("[ERROR]: Unable to open a file to write contents.", ERR_STANDARD | ERR_NOEXIT);
+								Error(InstallDir, ERR_STANDARD | ERR_NOEXIT);
+								goto error;
+						}
 
-      FileDescriptor = zip_fopen_index(ZipPointer, Entry, 0);
+						FileDescriptor = zip_fopen_index(ZipPointer, Entry, 0);
 
-      /* Read entry content and then write to the file opened earlier. */
-      zip_fread(FileDescriptor, Memory, ZipStat->size);
-      fwrite(Memory, sizeof(char), ZipStat->size, NewFile);
+						/* Read entry content and then write to the file opened earlier. */
+						zip_fread(FileDescriptor, Memory, ZipStat->size);
+						fwrite(Memory, sizeof(char), ZipStat->size, NewFile);
 
-      /* Cleanup. */
-      zip_fclose(FileDescriptor);
-      fclose(NewFile);
-      free(Memory);
-    }
+						/* Cleanup. */
+						zip_fclose(FileDescriptor);
+						fclose(NewFile);
+						free(Memory);
+				}
 
-    free(ZipStat);
-    zip_close(ZipPointer);
+				free(ZipStat);
+				zip_close(ZipPointer);
 
-    ZipStat = NULL;
+				ZipStat = NULL;
 
-    printf("[INFO]: Installing package %i out of %i.\r", i + 1, Fetched->TotalPackages);
-    fflush(stdout);
-  }
+				printf("[INFO]: Installing package %i out of %i.\r", i + 1, Fetched->TotalPackages);
+				fflush(stdout);
+		}
 
-  printf("\n");
+		printf("\n");
 
-  /* Free the instructions 2D array. */
-  for (uint8_t i = 0; i < Fetched->TotalPackages; i++)
-    free(Instructions[i]);
-  free(Instructions);
+		/* Free the instructions 2D array. */
+		for (uint8_t i = 0; i < Fetched->TotalPackages; i++)
+				free(Instructions[i]);
+		free(Instructions);
 
-  /* Remove temporary directory. We need to reset the path buffer. */
-  Official[InstallerLength + TempDirLength] = '\0';
+		/* Remove temporary directory. We need to reset the path buffer. */
+		Official[InstallerLength + TempDirLength] = '\0';
 
-  if (unlikely(nftw(Official, DeleteFile, 10, FTW_DEPTH | FTW_MOUNT | FTW_PHYS) < 0)) {
-    Error("[ERROR]: Failed to remove the Pwootie temporary directory.", ERR_STANDARD | ERR_NOEXIT);
-    Error(Official, ERR_STANDARD | ERR_NOEXIT);
-  }
+		if (unlikely(nftw(Official, DeleteFile, 10, FTW_DEPTH | FTW_MOUNT | FTW_PHYS) < 0)) {
+				Error("[ERROR]: Failed to remove the Pwootie temporary directory.", ERR_STANDARD | ERR_NOEXIT);
+				Error(Official, ERR_STANDARD | ERR_NOEXIT);
+		}
 
-  /* Free additional variables. */
-  free(FullURL);
-  free(InstallDir);
-  free(Official);
+		/* Free additional variables. */
+		free(FullURL);
+		free(InstallDir);
+		free(Official);
 
-  return 0;
+		return 0;
 
 error:
-  free(FullURL);
-  free(InstallDir);
-  free(Official);
+		free(FullURL);
+		free(InstallDir);
+		free(Official);
 
-  if (ZipStat)
-    free(ZipStat);
+		if (ZipStat)
+				free(ZipStat);
 
-  if (Instructions) {
-    for (uint8_t i = 0; i < Fetched->TotalPackages; i++)
-      free(Instructions[i]);
+		if (Instructions) {
+				for (uint8_t i = 0; i < Fetched->TotalPackages; i++)
+						free(Instructions[i]);
 
-    free(Instructions);
-  }
+				free(Instructions);
+		}
 
-  return -1;
+		return -1;
 }
 
 int8_t DownloadPackages(FetchStruct *Fetched, char *Version) {
-  uint32_t LengthURL = strlen(CDN_URL), LengthVersion = strlen(Version), RootPartLength = strlen(TEMP_PWOOTIE_FOLDER);
-  uint8_t Increment = 0;
+		uint32_t LengthURL = strlen(CDN_URL), LengthVersion = strlen(Version), RootPartLength = strlen(TEMP_PWOOTIE_FOLDER);
+		uint8_t Increment = 0;
 
-  char *FullURL = malloc((LengthURL + LengthVersion + Fetched->LongestName + 2) * sizeof(char));
-  char *ZipFilePath = malloc((RootPartLength + Fetched->LongestName + 2) * sizeof(char));
+		char *FullURL = malloc((LengthURL + LengthVersion + Fetched->LongestName + 2) * sizeof(char));
+		char *ZipFilePath = malloc((RootPartLength + Fetched->LongestName + 2) * sizeof(char));
 
-  FILE **FilePointers = NULL;
-  char **LinkPointers = NULL;
+		FILE **FilePointers = NULL;
+		char **LinkPointers = NULL;
 
-  if (unlikely(!FullURL))
-    Error("[FATAL]: Failed to allocate memory for FullURL during DownloadPackages call.", ERR_MEMORY);
-  else if (unlikely(!ZipFilePath))
-    Error("[FATAL]: Failed to allocate memory for ZipFilePath during DownloadPackages call.", ERR_MEMORY);
+		if (unlikely(!FullURL))
+				Error("[FATAL]: Failed to allocate memory for FullURL during DownloadPackages call.", ERR_MEMORY);
+		else if (unlikely(!ZipFilePath))
+				Error("[FATAL]: Failed to allocate memory for ZipFilePath during DownloadPackages call.", ERR_MEMORY);
 
-  memcpy(ZipFilePath, TEMP_PWOOTIE_FOLDER, RootPartLength);
-  ZipFilePath[RootPartLength] = '/';
+		memcpy(ZipFilePath, TEMP_PWOOTIE_FOLDER, RootPartLength);
+		ZipFilePath[RootPartLength] = '/';
 
-  memcpy(FullURL, CDN_URL, LengthURL);
-  memcpy(FullURL + LengthURL, Version, LengthVersion);
-  FullURL[LengthURL + LengthVersion] = '-';
+		memcpy(FullURL, CDN_URL, LengthURL);
+		memcpy(FullURL + LengthURL, Version, LengthVersion);
+		FullURL[LengthURL + LengthVersion] = '-';
 
-  /* Create a temp folder for downloads.
-   * The installer function cleans it once installation finishes.*/
-  if (unlikely(mkdir(TEMP_PWOOTIE_FOLDER, 0755) && errno != EEXIST)) {
-    Error("[FATAL]: Failed to create new directory within /tmp/.", ERR_STANDARD | ERR_NOEXIT);
-    goto error;
-  }
+		/* Create a temp folder for downloads.
+			* The installer function cleans it once installation finishes.*/
+		if (unlikely(mkdir(TEMP_PWOOTIE_FOLDER, 0755) && errno != EEXIST)) {
+				Error("[FATAL]: Failed to create new directory within /tmp/.", ERR_STANDARD | ERR_NOEXIT);
+				goto error;
+		}
 
-  printf("Downloading packages..\n");
+		printf("Downloading packages..\n");
 
-  /* A for loop is used here just to keep Index at a local scope. A while loop would've worked too. */
-  for (uint32_t Index = 0; Index < Fetched->TotalPackages;) {
-    CURLMsg *MultiMsg;
+		/* A for loop is used here just to keep Index at a local scope. A while loop would've worked too. */
+		for (uint32_t Index = 0; Index < Fetched->TotalPackages;) {
+				CURLMsg *MultiMsg;
 
-    int32_t StillRunning = 1, MessagesLeft = 0;
-    Increment = Fetched->TotalPackages - Index >= 32 ? 32 : Fetched->TotalPackages % 32;
+				int32_t StillRunning = 1, MessagesLeft = 0;
+				Increment = Fetched->TotalPackages - Index >= 32 ? 32 : Fetched->TotalPackages % 32;
 
-    FilePointers = malloc(Increment * sizeof(FILE*));
-    LinkPointers = malloc(Increment * sizeof(char*));
+				FilePointers = malloc(Increment * sizeof(FILE*));
+				LinkPointers = malloc(Increment * sizeof(char*));
 
-    if (unlikely(!FilePointers))
-      Error("[FATAL]: Failed to allocate FilePointers during DownloadPackages call.", ERR_MEMORY);
-    else if (unlikely(!LinkPointers))
-      Error("[FATAL]: Failed to allocate LinkPointers during DownloadPackages call.", ERR_MEMORY);
+				if (unlikely(!FilePointers))
+						Error("[FATAL]: Failed to allocate FilePointers during DownloadPackages call.", ERR_MEMORY);
+				else if (unlikely(!LinkPointers))
+						Error("[FATAL]: Failed to allocate LinkPointers during DownloadPackages call.", ERR_MEMORY);
 
-    for (uint32_t LinkIndex = Index; LinkIndex < Increment + Index; LinkIndex++) {
-      uint32_t  PackageNameLength = strlen(Fetched->PackageList[LinkIndex].Name);
+				for (uint32_t LinkIndex = Index; LinkIndex < Increment + Index; LinkIndex++) {
+						uint32_t  PackageNameLength = strlen(Fetched->PackageList[LinkIndex].Name);
 
-      /* The extra byte is obviously the dash. Well I suppose it's obvious. */
-      memcpy(FullURL + LengthURL + LengthVersion + 1, Fetched->PackageList[LinkIndex].Name, PackageNameLength);
-      FullURL[LengthURL + LengthVersion + PackageNameLength + 1] = '\0';
+						/* The extra byte is obviously the dash. Well I suppose it's obvious. */
+						memcpy(FullURL + LengthURL + LengthVersion + 1, Fetched->PackageList[LinkIndex].Name, PackageNameLength);
+						FullURL[LengthURL + LengthVersion + PackageNameLength + 1] = '\0';
 
-      memcpy(ZipFilePath + RootPartLength + 1, Fetched->PackageList[LinkIndex].Name, PackageNameLength);
-      ZipFilePath[RootPartLength + PackageNameLength + 1] = '\0';
+						memcpy(ZipFilePath + RootPartLength + 1, Fetched->PackageList[LinkIndex].Name, PackageNameLength);
+						ZipFilePath[RootPartLength + PackageNameLength + 1] = '\0';
 
-      LinkPointers[LinkIndex - Index] = strdup(FullURL);
-      FilePointers[LinkIndex - Index] = fopen(ZipFilePath, "w+");
+						LinkPointers[LinkIndex - Index] = strdup(FullURL);
+						FilePointers[LinkIndex - Index] = fopen(ZipFilePath, "w+");
 
-      if (unlikely(!FilePointers[LinkIndex - Index])) {
-        Error("[ERROR]: Unable to open %s during DownloadPackages call.", ERR_STANDARD | ERR_NOEXIT, ZipFilePath);
-        goto error;
-      } else if (unlikely(!LinkPointers[LinkIndex - Index])) {
-        Error("[ERROR]: Unable to allocate link pointer during DownloadPackages call.", ERR_STANDARD | ERR_NOEXIT);
-        goto error;
-      }
-    }
+						if (unlikely(!FilePointers[LinkIndex - Index])) {
+								Error("[ERROR]: Unable to open %s during DownloadPackages call.", ERR_STANDARD | ERR_NOEXIT, ZipFilePath);
+								goto error;
+						} else if (unlikely(!LinkPointers[LinkIndex - Index])) {
+								Error("[ERROR]: Unable to allocate link pointer during DownloadPackages call.", ERR_STANDARD | ERR_NOEXIT);
+								goto error;
+						}
+				}
 
-    if (unlikely(CurlMultiSetup(FilePointers, LinkPointers, Increment) != 0)) {
-      Error("[ERROR]: CurlMultiSetup fail.", ERR_STANDARD | ERR_NOEXIT);
-      goto error;
-    }
+				if (unlikely(CurlMultiSetup(FilePointers, LinkPointers, Increment) != 0)) {
+						Error("[ERROR]: CurlMultiSetup fail.", ERR_STANDARD | ERR_NOEXIT);
+						goto error;
+				}
 
-    /* https://curl.se/libcurl/c/multi-app.html */
-    do {
-      CURLMcode MultiCode = curl_multi_perform(CurlMulti, &StillRunning);
+				/* https://curl.se/libcurl/c/multi-app.html */
+				do {
+						CURLMcode MultiCode = curl_multi_perform(CurlMulti, &StillRunning);
 
-      if (StillRunning)
-        MultiCode = curl_multi_poll(CurlMulti, NULL, 0, 1000, NULL);
+						if (StillRunning)
+								MultiCode = curl_multi_poll(CurlMulti, NULL, 0, 1000, NULL);
 
-      if (MultiCode != CURLM_OK) {
-        Error("[ERROR]: MultiCode was not CURLM_OK during DownloadPackages. (cURL error: %s)", ERR_STANDARD | ERR_NOEXIT, curl_multi_strerror(MultiCode));
-        Error((char*)curl_multi_strerror(MultiCode), ERR_STANDARD | ERR_NOEXIT);
+						if (MultiCode != CURLM_OK) {
+								Error("[ERROR]: MultiCode was not CURLM_OK during DownloadPackages. (cURL error: %s)", ERR_STANDARD | ERR_NOEXIT, curl_multi_strerror(MultiCode));
+								Error((char*)curl_multi_strerror(MultiCode), ERR_STANDARD | ERR_NOEXIT);
 
-        goto error;
-      }
-    } while (StillRunning);
+								goto error;
+						}
+				} while (StillRunning);
 
-    /* Make sure everything was downloaded. */
-    while ((MultiMsg = curl_multi_info_read(CurlMulti, &MessagesLeft)) != NULL) {
-      if (unlikely(MultiMsg->data.result != CURLE_OK)) {
-        Error("[ERROR]: One or more packages failed to download.", ERR_STANDARD | ERR_NOEXIT);
-        goto error;
-      }
-    }
+				/* Make sure everything was downloaded. */
+				while ((MultiMsg = curl_multi_info_read(CurlMulti, &MessagesLeft)) != NULL) {
+						if (unlikely(MultiMsg->data.result != CURLE_OK)) {
+								Error("[ERROR]: One or more packages failed to download.", ERR_STANDARD | ERR_NOEXIT);
+								goto error;
+						}
+				}
 
-    for (uint32_t LinkIndex = 0; LinkIndex < Increment; LinkIndex++) {
-      uint8_t   Checksum[16];
-      char      ChecksumBuf[33];
+				for (uint32_t LinkIndex = 0; LinkIndex < Increment; LinkIndex++) {
+						uint8_t   Checksum[16];
+						char      ChecksumBuf[33];
 
-      md5File(FilePointers[LinkIndex], Checksum);
-      ChecksumToString(Checksum, ChecksumBuf);
+						md5File(FilePointers[LinkIndex], Checksum);
+						ChecksumToString(Checksum, ChecksumBuf);
 
-      if (unlikely(strcmp(ChecksumBuf, Fetched->PackageList[Index + LinkIndex].Checksum) != 0)) {
-        Error("[ERROR]: One or more packages' checksums are not matching.", ERR_STANDARD | ERR_NOEXIT);
-        goto error;
-      }
+						if (unlikely(strcmp(ChecksumBuf, Fetched->PackageList[Index + LinkIndex].Checksum) != 0)) {
+								Error("[ERROR]: One or more packages' checksums are not matching.", ERR_STANDARD | ERR_NOEXIT);
+								goto error;
+						}
 
-      fclose(FilePointers[LinkIndex]);
-      free(LinkPointers[LinkIndex]);
-    }
+						fclose(FilePointers[LinkIndex]);
+						free(LinkPointers[LinkIndex]);
+				}
 
-    free(FilePointers);
-    free(LinkPointers);
+				free(FilePointers);
+				free(LinkPointers);
 
-    ResetMultiCurl(Increment);
-    Index += Increment;
-  }
+				ResetMultiCurl(Increment);
+				Index += Increment;
+		}
 
-  printf("Download completed!\n");
+		printf("Download completed!\n");
 
-  free(ZipFilePath);
-  free(FullURL);
+		free(ZipFilePath);
+		free(FullURL);
 
-  return 0;
+		return 0;
 error:
-  free(ZipFilePath);
-  free(FullURL);
+		free(ZipFilePath);
+		free(FullURL);
 
-  if (LinkPointers) {
-    for (uint8_t SrcIndex = 0; SrcIndex < Increment; SrcIndex++) {
-      free(LinkPointers[SrcIndex]);
-      fclose(FilePointers[SrcIndex]);
-    }
+		if (LinkPointers) {
+				for (uint8_t SrcIndex = 0; SrcIndex < Increment; SrcIndex++) {
+						free(LinkPointers[SrcIndex]);
+						fclose(FilePointers[SrcIndex]);
+				}
 
-    free(LinkPointers);
-    free(FilePointers);
-  }
+				free(LinkPointers);
+				free(FilePointers);
+		}
 
-  return -1;
+		return -1;
 }
 
 FetchStruct* FetchPackages(char *Version) {
-  MemoryStruct ManifestContent;
+		MemoryStruct ManifestContent;
 
-  /* Last time I counted there were 35 packages. Hopefully I didn't count them wrong. */
-  uint8_t PackageArraySize = 35, CurrentPackage = 0;
+		/* Last time I counted there were 35 packages. Hopefully I didn't count them wrong. */
+		uint8_t PackageArraySize = 35, CurrentPackage = 0;
 
-  char *FullURL = BuildString(3, CDN_URL, Version, PACKAGE_MANIFEST);
-  Package *PackagesData = malloc(sizeof(Package) * PackageArraySize);
-  FetchStruct *ReturnStruct = malloc(sizeof(FetchStruct));
+		char *FullURL = BuildString(3, CDN_URL, Version, PACKAGE_MANIFEST);
+		Package *PackagesData = malloc(sizeof(Package) * PackageArraySize);
+		FetchStruct *ReturnStruct = malloc(sizeof(FetchStruct));
 
-  if (unlikely(!PackagesData))
-    Error("[FATAL]: Failed to allocate PackagesData within GetPackages call.", ERR_MEMORY);
-  else if (unlikely(!ReturnStruct))
-    Error("[FATAL]: Failed to allocate ReturnStruct within GetPackages call.", ERR_MEMORY);
+		if (unlikely(!PackagesData))
+				Error("[FATAL]: Failed to allocate PackagesData within GetPackages call.", ERR_MEMORY);
+		else if (unlikely(!ReturnStruct))
+				Error("[FATAL]: Failed to allocate ReturnStruct within GetPackages call.", ERR_MEMORY);
 
-  ManifestContent.Memory = malloc(1);
-  ManifestContent.Size = 0;
+		ManifestContent.Memory = malloc(1);
+		ManifestContent.Size = 0;
 
-  /* Get the manifest containing all the packages information needed. */
-  CURLcode Response = CurlGet(&ManifestContent, (char*)FullURL);
+		/* Get the manifest containing all the packages information needed. */
+		CURLcode Response = CurlGet(&ManifestContent, (char*)FullURL);
 
-  if (unlikely(Response != CURLE_OK)) {
-    Error("[ERROR]: GetPackages call failed to download the Manifest file. (cURL error: %s)", ERR_STANDARD | ERR_NOEXIT, curl_easy_strerror(Response));
-    goto error;
-  }
+		if (unlikely(Response != CURLE_OK)) {
+				Error("[ERROR]: GetPackages call failed to download the Manifest file. (cURL error: %s)", ERR_STANDARD | ERR_NOEXIT, curl_easy_strerror(Response));
+				goto error;
+		}
 
-  /* Construct PackagesData. Inside the for loop we're also allocating more space for PackagesData.
-   * We're skipping first 3 bytes, aka "v0\n"*/
-  for (uint32_t i = 4; i < ManifestContent.Size; i++) {
-    uint32_t SizePosition = 0, ZipSizePosition = 0, NamePosition = 0, ChecksumPosition = 0;
-    /* Sizes need to be converted into numbers. */
-    char SizeBuf[64], ZipSizeBuf[64];
+		/* Construct PackagesData. Inside the for loop we're also allocating more space for PackagesData.
+			* We're skipping first 3 bytes, aka "v0\n"*/
+		for (uint32_t i = 4; i < ManifestContent.Size; i++) {
+				uint32_t SizePosition = 0, ZipSizePosition = 0, NamePosition = 0, ChecksumPosition = 0;
+				/* Sizes need to be converted into numbers. */
+				char SizeBuf[64], ZipSizeBuf[64];
 
-    if (PackageArraySize == CurrentPackage) {
-      /* Allocate PackageArraySize * 2 more space for packages, to avoid making a lot of expensive malloc calls.
-       * We might be wasting a bit of memory here. */
-      PackageArraySize *= 2;
-      Package *l_PackagesData = realloc(PackagesData, sizeof(Package) * PackageArraySize);
+				if (PackageArraySize == CurrentPackage) {
+						/* Allocate PackageArraySize * 2 more space for packages, to avoid making a lot of expensive malloc calls.
+							* We might be wasting a bit of memory here. */
+						PackageArraySize *= 2;
+						Package *l_PackagesData = realloc(PackagesData, sizeof(Package) * PackageArraySize);
 
-      if (unlikely(!l_PackagesData)) {
-        Error("[ERROR]: Unable to reallocate PackagesData from GetPackages function.", ERR_STANDARD | ERR_NOEXIT);
-        goto error;
-      }
+						if (unlikely(!l_PackagesData)) {
+								Error("[ERROR]: Unable to reallocate PackagesData from GetPackages function.", ERR_STANDARD | ERR_NOEXIT);
+								goto error;
+						}
 
-      PackagesData = l_PackagesData;
-    }
+						PackagesData = l_PackagesData;
+				}
 
-    /* Maybe I could've did this section in a prettier way. Whatever.
-     * We subtract current position by one because we have to clean the carriage return character. */
-    /* First read the name of the package. */
-    for (; ManifestContent.Memory[i] != '\n'; i++, NamePosition++)
-      PackagesData[CurrentPackage].Name[NamePosition] = ManifestContent.Memory[i];
-    PackagesData[CurrentPackage].Name[NamePosition - 1] = '\0';
+				/* Maybe I could've did this section in a prettier way. Whatever.
+					* We subtract current position by one because we have to clean the carriage return character. */
+				/* First read the name of the package. */
+				for (; ManifestContent.Memory[i] != '\n'; i++, NamePosition++)
+						PackagesData[CurrentPackage].Name[NamePosition] = ManifestContent.Memory[i];
+				PackagesData[CurrentPackage].Name[NamePosition - 1] = '\0';
 
-    i++;
+				i++;
 
-    /* Next read the checksum. */
-    for (; ManifestContent.Memory[i] != '\n'; i++, ChecksumPosition++)
-      PackagesData[CurrentPackage].Checksum[ChecksumPosition] = ManifestContent.Memory[i];
-    PackagesData[CurrentPackage].Checksum[ChecksumPosition - 1] = '\0';
+				/* Next read the checksum. */
+				for (; ManifestContent.Memory[i] != '\n'; i++, ChecksumPosition++)
+						PackagesData[CurrentPackage].Checksum[ChecksumPosition] = ManifestContent.Memory[i];
+				PackagesData[CurrentPackage].Checksum[ChecksumPosition - 1] = '\0';
 
-    i++;
+				i++;
 
-    /* Read the uncompressed size. */
-    for (; ManifestContent.Memory[i] != '\n'; i++, SizePosition++)
-      SizeBuf[SizePosition] = ManifestContent.Memory[i];
-    SizeBuf[SizePosition - 1] = '\0';
+				/* Read the uncompressed size. */
+				for (; ManifestContent.Memory[i] != '\n'; i++, SizePosition++)
+						SizeBuf[SizePosition] = ManifestContent.Memory[i];
+				SizeBuf[SizePosition - 1] = '\0';
 
-    i++;
+				i++;
 
-    /* Read the compressed size. */
-    for (; ManifestContent.Memory[i] != '\n'; i++, ZipSizePosition++)
-      ZipSizeBuf[ZipSizePosition] = ManifestContent.Memory[i];
-    ZipSizeBuf[ZipSizePosition - 1] = '\0';
+				/* Read the compressed size. */
+				for (; ManifestContent.Memory[i] != '\n'; i++, ZipSizePosition++)
+						ZipSizeBuf[ZipSizePosition] = ManifestContent.Memory[i];
+				ZipSizeBuf[ZipSizePosition - 1] = '\0';
 
-    PackagesData[CurrentPackage].Size    = atoi(SizeBuf);
-    PackagesData[CurrentPackage].ZipSize = atoi(ZipSizeBuf);
+				PackagesData[CurrentPackage].Size    = atoi(SizeBuf);
+				PackagesData[CurrentPackage].ZipSize = atoi(ZipSizeBuf);
 
-    /* Update LongestPackageName. */
-    if (ReturnStruct->LongestName < NamePosition)
-      ReturnStruct->LongestName = NamePosition;
+				/* Update LongestPackageName. */
+				if (ReturnStruct->LongestName < NamePosition)
+						ReturnStruct->LongestName = NamePosition;
 
-    CurrentPackage++;
-  }
+				CurrentPackage++;
+		}
 
-  ReturnStruct->TotalPackages = CurrentPackage;
-  ReturnStruct->PackageList   = PackagesData;
+		ReturnStruct->TotalPackages = CurrentPackage;
+		ReturnStruct->PackageList   = PackagesData;
 
-  free(FullURL);
-  free(ManifestContent.Memory);
-  return ReturnStruct;
+		free(FullURL);
+		free(ManifestContent.Memory);
+		return ReturnStruct;
 
 error:
-  free(PackagesData);
-  free(FullURL);
-  free(ManifestContent.Memory);
-  return NULL;
+		free(PackagesData);
+		free(FullURL);
+		free(ManifestContent.Memory);
+		return NULL;
 }
