@@ -127,8 +127,8 @@ EnvInfoStruct *FetchEnvInfo(char *StudioVersion) {
   memcpy(EnvInfo->KernelRelease, KernelInfo.release, ReleaseLen);
   EnvInfo->PwootieVersion = PWOOTIE_VERSION;
   EnvInfo->RobloxVersion = StudioVersion;
-  EnvInfo->SessionType = getenv("XDG_CURRENT_DESKTOP");
-  EnvInfo->DesktopEnvironment = getenv("XDG_SESSION_TYPE");
+  EnvInfo->SessionType = getenv("XDG_SESSION_TYPE");
+  EnvInfo->DesktopEnvironment = getenv("XDG_CURRENT_DESKTOP");
 
   EnvInfo->MachineType[MachineLen] = '\0';
   EnvInfo->KernelRelease[ReleaseLen] = '\0';
