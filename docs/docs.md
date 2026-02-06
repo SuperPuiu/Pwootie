@@ -30,6 +30,8 @@ Pwootie has a few launch options which can be used whenever starting the program
 
 `wine <config/setup>` - This option tells the bootstrapper to launch anything WINE related. The `config` option will launch the `winecfg` executable found in the same folder as the `wine_binary` binary is located. The `setup` option will run the `SetupPrefix()` function.
 
+`info` - This option tells the bootstrapper to output information regarding the environment it is running. Useful when opening a new issue.
+
 # Pwootie Troubleshooting
 There are a few issues to keep in mind, such as studio flickering after opening and closing a script, studio not starting in general. To be able to run studio with a version that lacks `VirtualProtectFromApp`, you have two options:
 1. Extract the `kernelbase.dll` file from a directory similar to `lib/wine/x86_64-windows` from your WINE installation and add it to your own Pwootie WINE folder, considering you already finalised the installation.
