@@ -85,6 +85,8 @@ int32_t ExecProgram(char *Program, uint8_t Silent, uint8_t Disown, ...) {
 }
 
 EnvInfoStruct *FetchEnvInfo(char *StudioVersion) {
+		FILE *WineVersionFile = NULL;
+
 		const char *WineCommand = " --version";
 		char *WineExec = PwootieReadEntry("wine_binary");
 		uint8_t FreeWineExec = 1;
@@ -136,7 +138,7 @@ EnvInfoStruct *FetchEnvInfo(char *StudioVersion) {
 		EnvInfo->SessionType = EnvInfo->SessionType != NULL ? EnvInfo->SessionType : "NULL";
 		EnvInfo->DesktopEnvironment = EnvInfo->DesktopEnvironment != NULL ? EnvInfo->DesktopEnvironment : "NULL";
 
-		FILE *WineVersionFile = popen(CommandBuffer, "r");
+		WineVersionFile = popen(CommandBuffer, "r");
 
 		if (unlikely(!WineVersionFile)) {
 				Error("[ERROR]: Failed to popen %s.", ERR_STANDARD | ERR_NOEXIT, CommandBuffer);

@@ -459,6 +459,8 @@ error:
 int8_t SetupPrefix() {
 		printf("[INFO]: Setting up prefix.\n");
 
+		char *Location = NULL;
+
 		const char *D3DX11_43 = "winetricks d3dx11_43 > /dev/null 2>&1";
 		const char *DXVK = "winetricks dxvk > /dev/null 2>&1";
 
@@ -488,7 +490,7 @@ int8_t SetupPrefix() {
 		}
 
 		/* Is all this string building needed? */
-		char *Location = GetPrefixPath(0);
+		Location = GetPrefixPath(0);
 
 		if (mkdir(Location, 0755) && errno != EEXIST) {
 				Error("[FATAL]: Unable to create folder during SetupPrefix call.", ERR_STANDARD | ERR_NOEXIT);
