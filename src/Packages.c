@@ -44,7 +44,7 @@ char *FormatChecksums(FetchStruct *Fetched) {
 		return Checksums;
 }
 
-int8_t InstallPackages(FetchStruct *Fetched, char *Version) {
+int8_t InstallPackages(FetchStruct *Fetched, char *Version, char *Checksums) {
 		CURLcode  Response;
 		FILE      *Installer;
 
@@ -61,6 +61,8 @@ int8_t InstallPackages(FetchStruct *Fetched, char *Version) {
 		char *Official        = malloc((InstallerLength + TempDirLength + 64 + 1) * sizeof(char));
 		char *InstallDir      = malloc((InstallDirTotal) * sizeof(char));
 		char *FullURL         = BuildString(4, CDN_URL, Version, "-", OFFICIAL_INSTALLER);
+
+		unused(Checksums);
 
 		if (!Official)
 				Error("[FATAL]: Unable to allocate Official during InstallPackages call.", ERR_MEMORY);
@@ -274,7 +276,7 @@ error:
 		return -1;
 }
 
-int8_t DownloadPackages(FetchStruct *Fetched, char *Version) {
+int8_t DownloadPackages(FetchStruct *Fetched, char *Version, char *Checksums) {
 		uint32_t LengthURL = strlen(CDN_URL), LengthVersion = strlen(Version), RootPartLength = strlen(TEMP_PWOOTIE_FOLDER);
 		uint8_t Increment = 0;
 
@@ -283,6 +285,8 @@ int8_t DownloadPackages(FetchStruct *Fetched, char *Version) {
 
 		FILE **FilePointers = NULL;
 		char **LinkPointers = NULL;
+
+		unused(Checksums);
 
 		if (unlikely(!FullURL))
 				Error("[FATAL]: Failed to allocate memory for FullURL during DownloadPackages call.", ERR_MEMORY);
