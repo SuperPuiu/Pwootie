@@ -6,7 +6,7 @@
 typedef struct {
 		FILE *FileStream;
 		char *RemoteFileName, *DownloadPath;
-		uint32_t RemoteNameSize;
+		uint32_t RemoteNameSize, FileNameSize;
 } DownloadStruct;
 
 static CURL *CurlHandle;
@@ -108,7 +108,7 @@ static int8_t GetNameFromContent(char const *ContentDisposition, DownloadStruct 
 		}
 
 		StructPtr->RemoteFileName[SrcIndex] = '\0';
-
+		StructPtr->FileNameSize = SrcIndex;
 		return 0;
 }
 
@@ -157,7 +157,8 @@ ResponseStruct* CurlDownloadNoFile(char *WithURL, char *DownloadPath) {
 
 		Response->Response = curl_easy_perform(CurlDownloadHandle);
 		Response->FileStream = Temp.FileStream;
-		Response->FileNameSize = Temp.RemoteNameSize == 1 ? strlen(Temp.RemoteFileName) : Temp.RemoteNameSize;
+		Response->FileNameSize = Temp.RemoteNameSize == 1 ? strlen(Temp.RemoteFileName) : Temp.FileNameSize;
+
 		Response->FileName = Temp.RemoteFileName;
 		Response->FreeName = Temp.RemoteNameSize != 1;
 		return Response;
