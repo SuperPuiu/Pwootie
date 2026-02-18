@@ -1,5 +1,5 @@
 #pragma once
-#define _XOPEN_SOURCE 700
+#define _XOPEN_SOURCE 800
 
 #include <stdio.h>
 #include <stdlib.h>
