@@ -377,12 +377,12 @@ int8_t SetupWine(uint8_t CheckExistence) {
 				Total += SizeDifference;
 				PathCopy = realloc(PathCopy, sizeof(char) * Total);
 
-				if (!PathCopy)
+				if (unlikely(!PathCopy))
 						Error("[FATAL]: Unable to realloc PathCopy during SetupWine call.", ERR_MEMORY);
 
 				Path = realloc(Path, sizeof(char) * Total);
 
-				if (!Path)
+				if (unlikely(!Path))
 						Error("[FATAL]: Unable to realloc Path during SetupWine call.", ERR_MEMORY);
 		}
 
@@ -402,9 +402,10 @@ int8_t SetupWine(uint8_t CheckExistence) {
 		/* Remove zip file. */
 		remove(Path);
 
-		/* Write wine_binary entry. If wine64 binary can't be found, then throw an error. */
+		/* Write wine_binary entry. If wine64 binary can't be found, then throw an error.
+			* strlen(".tar.xz") should get optimized by the compiler hopefully. */
 		printf("Fetching new wine path.\n");
-		Path[HomeLength + InstallDirLength + WineNameLength + WineDirLength - strlen(".tar.xz")] = '\0';
+		Path[(HomeLength + InstallDirLength + WineNameLength + WineDirLength + 3) - strlen(".tar.xz")] = 0;
 		nftw(Path, Search, 10, FTW_DEPTH | FTW_MOUNT | FTW_PHYS);
 
 		if (unlikely(NFTW_BinPath[0] == 0)) {
