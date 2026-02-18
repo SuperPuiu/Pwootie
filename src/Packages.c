@@ -25,21 +25,28 @@ void ChecksumToString(uint8_t *restrict Checksum, char *restrict Buffer) {
 
 /* Prototypes are found in Installer.c */
 char *FormatChecksums(FetchStruct *Fetched) {
-		const uint8_t BufferSize = 32;
-		uint32_t SrcIndex = 0;
+		const uint8_t ChecksumSize = 32;
+		uint32_t SrcIndex = 0, Offset = 0;
 
-		/* 33 is the size of the Checksum buffer. We add another Fetched->TotalPackages for the semicolons. */
-		char *Checksums = malloc((Fetched->TotalPackages * BufferSize + Fetched->TotalPackages) * sizeof(char));
+		/* We add Fetched->TotalPackages for the semicolons. We may also be.. Overallocating. */
+		char *Checksums = malloc((Fetched->TotalPackages * ChecksumSize + Fetched->TotalPackages * Fetched->LongestName + Fetched->TotalPackages) * sizeof(char));
 
-		if (!Checksums)
+		if (unlikely(!Checksums))
 				Error("[FATAL]: Unable to allocate Checksums buffer during FormatChecksums call.", ERR_MEMORY);
 
 		for (; SrcIndex < Fetched->TotalPackages; SrcIndex++) {
-				memcpy(Checksums + (SrcIndex * (BufferSize + 1)), Fetched->PackageList[SrcIndex].Checksum, BufferSize);
-				Checksums[SrcIndex * (BufferSize + 1) + BufferSize] = ';';
+				Package *Current = &Fetched->PackageList[SrcIndex];
+				uint32_t NameLen = strlen(Current->Name);
+
+				memcpy(Checksums + Offset, Current->Checksum, ChecksumSize);
+				memcpy(Checksums + Offset + ChecksumSize + 1, Current->Name, NameLen);
+				Checksums[Offset + ChecksumSize] = '-';
+				Checksums[Offset + ChecksumSize + NameLen + 1] = ';';
+
+				Offset += NameLen + ChecksumSize + 2;
 		}
 
-		Checksums[SrcIndex * (BufferSize + 1)] = '\0';
+		Checksums[Offset] = '\0';
 
 		return Checksums;
 }
@@ -64,9 +71,9 @@ int8_t InstallPackages(FetchStruct *Fetched, char *Version, char *Checksums) {
 
 		unused(Checksums);
 
-		if (!Official)
+		if (unlikely(!Official))
 				Error("[FATAL]: Unable to allocate Official during InstallPackages call.", ERR_MEMORY);
-		else if (!InstallDir)
+		else if (unlikely(!InstallDir))
 				Error("[FATAL]: Unable to allocate InstallDir during InstallPackages call.", ERR_MEMORY);
 
 		/* Construct official downloaded path. */
@@ -150,7 +157,7 @@ int8_t InstallPackages(FetchStruct *Fetched, char *Version, char *Checksums) {
 
 				ZipStat = calloc(256, sizeof(int));
 
-				if (!ZipStat)
+				if (unlikely(!ZipStat))
 						Error("[FATAL]: Unable to allocate ZipStat during InstallPackages call.", ERR_MEMORY);
 
 				if (unlikely(!ZipStat)) {
@@ -358,7 +365,7 @@ int8_t DownloadPackages(FetchStruct *Fetched, char *Version, char *Checksums) {
 						if (StillRunning)
 								MultiCode = curl_multi_poll(CurlMulti, NULL, 0, 1000, NULL);
 
-						if (MultiCode != CURLM_OK) {
+						if (unlikely(MultiCode != CURLM_OK)) {
 								Error("[ERROR]: MultiCode was not CURLM_OK during DownloadPackages. (cURL error: %s)", ERR_STANDARD | ERR_NOEXIT, curl_multi_strerror(MultiCode));
 								Error((char*)curl_multi_strerror(MultiCode), ERR_STANDARD | ERR_NOEXIT);
 
@@ -381,7 +388,7 @@ int8_t DownloadPackages(FetchStruct *Fetched, char *Version, char *Checksums) {
 						md5File(FilePointers[LinkIndex], Checksum);
 						ChecksumToString(Checksum, ChecksumBuf);
 
-						if (unlikely(strcmp(ChecksumBuf, Fetched->PackageList[Index + LinkIndex].Checksum) != 0)) {
+						if (unlikely(strncmp(ChecksumBuf, Fetched->PackageList[Index + LinkIndex].Checksum, 32) != 0)) {
 								Error("[ERROR]: One or more packages' checksums are not matching.", ERR_STANDARD | ERR_NOEXIT);
 								goto error;
 						}
@@ -449,7 +456,7 @@ FetchStruct* FetchPackages(char *Version) {
 		/* Construct PackagesData. Inside the for loop we're also allocating more space for PackagesData.
 			* We're skipping first 3 bytes, aka "v0\n"*/
 		for (uint32_t i = 4; i < ManifestContent.Size; i++) {
-				uint32_t SizePosition = 0, ZipSizePosition = 0, NamePosition = 0, ChecksumPosition = 0;
+				uint32_t SizePosition = 0, ZipSizePosition = 0, NamePosition = 0;
 				/* Sizes need to be converted into numbers. */
 				char SizeBuf[64], ZipSizeBuf[64];
 
@@ -476,12 +483,9 @@ FetchStruct* FetchPackages(char *Version) {
 
 				i++;
 
-				/* Next read the checksum. */
-				for (; ManifestContent.Memory[i] != '\n'; i++, ChecksumPosition++)
-						PackagesData[CurrentPackage].Checksum[ChecksumPosition] = ManifestContent.Memory[i];
-				PackagesData[CurrentPackage].Checksum[ChecksumPosition - 1] = '\0';
-
-				i++;
+				/* Next read the checksum. We know the size of the checksum already. */
+				memcpy(PackagesData[CurrentPackage].Checksum, ManifestContent.Memory + i, 32);
+				i += 34;
 
 				/* Read the uncompressed size. */
 				for (; ManifestContent.Memory[i] != '\n'; i++, SizePosition++)
