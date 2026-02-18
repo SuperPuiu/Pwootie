@@ -28,50 +28,54 @@
 #define unused(x) ((void) (x))
 
 typedef enum ErrorFlags {
-  ERR_STANDARD  = (1 << 0),
-  ERR_MEMORY    = (1 << 1),
-  ERR_NOEXIT    = (1 << 2)
+		ERR_STANDARD  = (1 << 0),
+		ERR_MEMORY    = (1 << 1),
+		ERR_NOEXIT    = (1 << 2)
 } ErrorFlags;
 
 typedef struct MemoryStruct {
-  char    *Memory;
-  size_t  Size;
+		char    *Memory;
+		size_t  Size;
 } MemoryStruct;
 
 typedef struct ResponseStruct {
-  FILE *FileStream;
-  char *FileName;
-  uint32_t FileNameSize;
-  uint8_t FreeName:1;
-  CURLcode Response;
+		FILE *FileStream;
+		char *FileName;
+
+		uint32_t FileNameSize;
+		uint8_t  FreeName:1;
+		CURLcode Response;
 } ResponseStruct;
 
 typedef struct EnvInfoStruct {
-  char *PwootieVersion, *Renderer;
-  char *RobloxVersion, *DesktopEnvironment;
-  char *SessionType;
+		char *PwootieVersion, *Renderer;
+		char *RobloxVersion, *DesktopEnvironment;
+		char *SessionType;
 
-  char WineVersion[64];
-  char KernelRelease[64], MachineType[64];
+		char WineVersion[64];
+		char KernelRelease[64], MachineType[64];
 } EnvInfoStruct;
 
 typedef struct VersionData {
-  char *Version;
-  char *ClientVersionUpload; /* GUID */
-  char *BootstrapperVersion;
+		char *Version;
+		char *ClientVersionUpload; /* GUID */
+		char *BootstrapperVersion;
 } VersionData;
 
 typedef struct Package {
-  char    Name[64];
-  char    Checksum[33];
-  int64_t Size;
-  int64_t ZipSize;
+		char    Name[64];
+		char    Checksum[33];
+
+		uint8_t Redownload:1;
+
+		int64_t Size;
+		int64_t ZipSize;
 } Package;
 
 typedef struct FetchPackagesStruct {
-  Package   *PackageList;
-  uint32_t  LongestName;
-  uint8_t   TotalPackages;
+		Package   *PackageList;
+		uint32_t  LongestName;
+		uint8_t   TotalPackages;
 } FetchStruct;
 
 /* System.c */
