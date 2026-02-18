@@ -134,6 +134,7 @@ non_changeable:
 	* @return 0 on success and -1 on failure. */
 int8_t CreateFFlags(char *restrict Version, char *restrict OldVersion) {
 		FILE *FFlagsFile = NULL, *FileDestination = NULL;
+		char *DestinationPath = NULL;
 		char *FFlagsPath;
 
 		if (!OldVersion) {
@@ -156,7 +157,7 @@ int8_t CreateFFlags(char *restrict Version, char *restrict OldVersion) {
 		} else
 				FFlagsPath = BuildString(7, getenv("HOME"), "/", INSTALL_DIR, "/", OldVersion, "/", VERSION_SETTINGS_PATH);
 
-		char *DestinationPath = BuildString(7, getenv("HOME"), "/", INSTALL_DIR, "/", Version, "/", VERSION_SETTINGS_PATH);
+		DestinationPath = BuildString(7, getenv("HOME"), "/", INSTALL_DIR, "/", Version, "/", VERSION_SETTINGS_PATH);
 		char *Buffer = NULL;
 
 		uint32_t DIRECTORY_LEN = strlen(DestinationPath) - 22;
@@ -224,7 +225,9 @@ int8_t CreateFFlags(char *restrict Version, char *restrict OldVersion) {
 
 error:
 		free(FFlagsPath);
-		free(DestinationPath);
+
+		if (likely(DestinationPath))
+				free(DestinationPath);
 
 		if (Buffer)
 				free(Buffer);
