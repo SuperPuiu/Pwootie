@@ -155,15 +155,10 @@ int8_t InstallPackages(FetchStruct *Fetched, char *Version, char *Checksums) {
 				char *Memory;
 				FILE *NewFile;
 
-				ZipStat = calloc(256, sizeof(int));
+				ZipStat = malloc(sizeof(struct zip_stat));
 
 				if (unlikely(!ZipStat))
 						Error("[FATAL]: Unable to allocate ZipStat during InstallPackages call.", ERR_MEMORY);
-
-				if (unlikely(!ZipStat)) {
-						Error("[ERROR]: Failed to allocate ZipStat for package indexed %i during InstallPackages call.", ERR_STANDARD | ERR_NOEXIT, i);
-						goto error;
-				}
 
 				/* Construct required paths. Official path becomes the path to which the zip file is located. */
 				memcpy(InstallDir + HomeLength + InstallDirLength + LengthVersion + 3, Instructions[i], InstructionLength + 1);
