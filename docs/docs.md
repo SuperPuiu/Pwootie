@@ -1,24 +1,24 @@
 # Pwootie configuration flags
-Pwootie has a few configuration variables which you may make use of. Configuration of the bootstrapper can be done **only** through a configuration file found in `~/.robloxstudio/` with the name `PwootieData.txt`. The configuration supports the following options:
+Pwootie has a few configuration variables which you may make use of. Configuration of the bootstrapper can be done **only** through a configuration file found in `~/.robloxstudio/` with the name `PwootieData.txt`. Spaces may not be added between the variable name and data. The configuration supports the following options:
 
 `cdn` - A string for the CDN link to be used. Defaults to `https://setup.rbxcdn.com/`. This is used whenever a new version of ROBLOX Studio is installed.
 
 `update_wine` - A boolean (`true` or `false`) which tells the bootstrapper if it should update the Proton installation whenever possible.
 
-`wine_binary` - A string which tells the bootstrapper where is the `wine64` executable located. This is automatically modified during update unless `update_wine` boolean is false.
+`wine_binary` - A string which tells the bootstrapper where is the `wine` executable located. This is automatically modified during update unless `update_wine` boolean is false. Changing this entry is allowed.
 
-`wine_link` - A string which tells the bootstrapper what link to use when updating wine.
+`wine_link` - A string which tells the bootstrapper where on internet is the **.tar.xf** WINE archive is located. `.zip` is not currently supported. Use this if you want to test different versions of WINE easily.
 
 `debug` - A boolean (`true` or `false`) which tells the bootstrapper to let WINE throw errors and warnings in the terminal.
 
 `version` - A string used internally by Pwootie. Modification of this string will cause an update on the next launch. Use `forced_version` instead to force a version.
 
-`forced_version` - A string which instructs Pwootie to install a specific version of ROBLOX Studio.
+`forced_version` - A string which instructs Pwootie to install a specific version of ROBLOX Studio. Must be a real studio version (e.g. `version-6df69e4610344376`) else it won't work.
 
-`checksums` - A string used internally by Pwootie to know whenever a package can be copied from disk or should be downloaded from the CDN. Checksums are split by a semicolon.
+`checksums` - A string used internally by Pwootie to know whenever a package can be copied from disk or should be downloaded from the CDN. Checksums are split by a semicolon. Checksums are in the format of `checksum-package_name`.
 
 # Pwootie launch options
-Pwootie has a few launch options which can be used whenever starting the program. Launching the program without any option will launch ROBLOX Studio. Launching the program with an unknown option will launch ROBLOX Studio as well. The launch options are the following:
+Pwootie has a few launch options which can be used whenever starting the program. Launching the program without any option will launch ROBLOX Studio. Launching the program with an unknown option will launch ROBLOX Studio as well, passing said option to Studio. The launch options are the following:
 
 `reinstall <wine/studio>` - This option tells the bootstrapper to reinstall either wine or studio. The `update_wine` variable is ignored when reinstalling wine.
 
@@ -40,4 +40,4 @@ There are a few issues to keep in mind, such as studio flickering after opening 
 If Vulkan fails to start for whatever reason, [this link might be useful](https://bbs.archlinux.org/viewtopic.php?id=301979). If it's not, open an issue and I'll try to my best to document the issue and to help.
 
 # Pwootie Building
-To build from source you need the following libraries: `curl`, `libzip`. Make sure you have them downloaded before attempting to build the project. Once done, use `make release` and you'll get a new executable in the `bin` folder. Use `make` if you want to build a testing version of the bootstrapper.
+To build from source you need the following libraries: `curl`, `libzip`. Make sure you have them downloaded before attempting to build the project, and also make sure you have `clang` or `gcc` installed. Once done, use `make release` and you'll get a new executable in the `bin` folder. Use `make` if you want to build a testing version of the bootstrapper. When running the program, ensure you have the `tar` command available as it's required to unpack WINE.
