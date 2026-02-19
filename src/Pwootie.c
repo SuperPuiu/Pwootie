@@ -61,8 +61,10 @@ int32_t PwootieGetEntry(char *Entry) {
 
 						if (unlikely(EntryIndex == 128))
 								Error("[FATAL]: EntryIndex reached number 128. Is the PwooteFile corrupt?", ERR_STANDARD);
-						else if (unlikely(SrcIndex == BufferSize))
-								Error("[FATAL]: SrcIndex reached BufferSize. Is the PwootieFile corrupt?", ERR_STANDARD);
+						else if (unlikely(SrcIndex == BufferSize)) {
+								Error("[WARNING]: SrcIndex reached BufferSize while searching for %s. Is the PwootieFile corrupt?", ERR_STANDARD, Entry);
+								return -1;
+						}
 				} while (PwootieBuffer[SrcIndex] != '=');
 
 				EntryName[EntryIndex] = '\0';
@@ -118,7 +120,8 @@ char* PwootieReadEntry(char *Entry) {
 		return Data;
 }
 
-/* PwootieExit() writes the file and closes the file. This is called at the end of the program. */
+/* PwootieExit() writes the file and closes the file. This is called at the end of the program.
+	* @return nothing */
 void PwootieExit() {
 		if (unlikely(!PwootieFile))
 				return;
@@ -132,8 +135,9 @@ void PwootieExit() {
 		PwootieFile = NULL;
 }
 
-/* PwootieWriteEntry() writes an entry to the buffer. */
-void PwootieWriteEntry(char *Entry, char *Data) {
+/* PwootieWriteEntry() writes an entry to the buffer.
+	* @return nothing */
+void PwootieWriteEntry(char *restrict Entry, char *restrict Data) {
 		uint32_t EntrySize = strlen(Entry), DataSize = strlen(Data);
 		int32_t EntryIndex = PwootieGetEntry(Entry);
 
@@ -152,21 +156,38 @@ void PwootieWriteEntry(char *Entry, char *Data) {
 
 				if (unlikely(!PwootieBuffer))
 						Error("[FATAL]: Unable to realloc the PwootieBuffer during PwootieWriteEntry.", ERR_MEMORY);
+		} else {
+				/* Move anything after the entry forward, to make space. */
+				uint32_t Newline = EntryIndex;
+
+				/* We're expecting every entry to end with a newline. */
+				while (PwootieBuffer[Newline] != '\n' && Newline < BufferSize)
+						Newline++;
+
+				if (Newline == BufferSize) {
+						Error("[WARNING]: Missing ending newline for entry %s.\n", ERR_STANDARD, Entry);
+				} else {
+						uint32_t CurrentSize = (Newline - EntryIndex) + 1, RequiredSize = EntrySize + DataSize + 2;
+						int64_t Result = (int64_t)RequiredSize - (int64_t)CurrentSize;
+
+						if (Result != 0) {
+								memmove(
+										PwootieBuffer + (Newline + Result),
+										PwootieBuffer + Newline,
+										BufferSize - RequiredSize + 1);
+						}
+
+						if (Result < 0)
+								BufferSize--;
+				}
 		}
 
 		/* Write the entry. */
-		for (uint32_t Index = 0; Index < EntrySize; Index++) {
-				PwootieBuffer[EntryIndex] = Entry[Index];
-				EntryIndex++;
-		}
+		memcpy(PwootieBuffer + EntryIndex, Entry, EntrySize);
+		EntryIndex += EntrySize + 1;
+		PwootieBuffer[EntrySize] = '=';
 
-		PwootieBuffer[EntryIndex] = '=';
-		EntryIndex++;
-
-		for (uint32_t DataIndex = 0; DataIndex < DataSize; DataIndex++) {
-				PwootieBuffer[EntryIndex] = Data[DataIndex];
-				EntryIndex++;
-		}
-
+		memcpy(PwootieBuffer + EntryIndex, Data, DataSize);
+		EntryIndex += DataSize;
 		PwootieBuffer[EntryIndex] = '\n';
 }
