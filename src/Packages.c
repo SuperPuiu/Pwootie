@@ -383,7 +383,7 @@ int8_t DownloadPackages(FetchStruct *Fetched, char *Version, char *Checksums) {
 						md5File(FilePointers[LinkIndex], Checksum);
 						ChecksumToString(Checksum, ChecksumBuf);
 
-						if (unlikely(strncmp(ChecksumBuf, Fetched->PackageList[Index + LinkIndex].Checksum, 32) != 0)) {
+						if (unlikely(memcmp(ChecksumBuf, Fetched->PackageList[Index + LinkIndex].Checksum, 32) != 0)) {
 								Error("[ERROR]: One or more packages' checksums are not matching.", ERR_STANDARD | ERR_NOEXIT);
 								goto error;
 						}

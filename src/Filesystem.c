@@ -44,6 +44,31 @@ int32_t CopyEntry(const char *PathName, const struct stat *_sbuf, int32_t type, 
 		}
 }
 
+/* ReadFileToBuffer reads the whole provided file to a dynamically allocated buffer.
+	* If provided, PtrSize is set to the maximum size of the file.
+	* @return always a buffer. */
+char *ReadFileToBuffer(FILE *Ptr, uint32_t *PtrSize) {
+		uint32_t Size;
+		char *Buffer;
+
+		fseek(Ptr, 0, SEEK_END);
+		Size = ftell(Ptr);
+		fseek(Ptr, 0, SEEK_SET);
+
+		Buffer = malloc(Size * sizeof(char));
+
+		if (unlikely(!Buffer))
+				Error("[FATAL]: Unable to allocate Buffer during ReadFileToBuffer.", ERR_MEMORY);
+
+		fread(Buffer, Size, sizeof(char), Ptr);
+		fseek(Ptr, 0, SEEK_SET);
+
+		if (PtrSize)
+				*PtrSize = Size;
+
+		return Buffer;
+}
+
 /* BuildDirectoryTree() builds a path of directories.
 	* @return 0 on success and -1 on failure. */
 int8_t BuildDirectoryTree(char *Path) {

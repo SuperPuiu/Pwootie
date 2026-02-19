@@ -54,6 +54,31 @@ static char *GetPrefixPath(uint32_t ExtraBytes) {
 		return Location;
 }
 
+/* GetUserRegistry opens the user.reg file within the prefix in read/appeand mode and returns it, if possible.
+	* @return FILE* on success and NULL on failure. */
+FILE* GetUserRegistry() {
+		const char *RegistryFileName = "user.reg";
+
+		uint32_t RegFileLen = strlen(RegistryFileName);
+		FILE *UserRegistry = NULL;
+
+		char *Prefix = GetPrefixPath(RegFileLen + 1);
+
+		memcpy(Prefix + strlen(Prefix), RegistryFileName, RegFileLen + 1);
+		UserRegistry = fopen(Prefix, "r+");
+
+		if (unlikely(!UserRegistry)) {
+				Error("[ERROR]: Unable to open registry file.", ERR_STANDARD | ERR_NOEXIT);
+				goto error;
+		}
+
+		free(Prefix);
+		return UserRegistry;
+error:
+		free(Prefix);
+		return NULL;
+}
+
 /* AddNewUser() adds a new account to the registry, allowing the user to log into it.
 	* The registry is HKEY_CURRENT_USER/Software/Roblox/RobloxStudio/LoggedInUserStore/https:/www.roblox.com/users.
 	* Format: {"userId1":{"username1":"name","profilePicUrl":"url"}}; {"userId2":{"username":"name","profilePicUrl":"url"}}; ...
@@ -76,17 +101,13 @@ int8_t AddNewUser(char *restrict UserId, char *restrict Name, char *restrict URL
 
 		URL = URL ? URL : "";
 
-		FILE *UserRegistry;
-
-		const char *RegistryFileName = "user.reg";
+		FILE *UserRegistry = GetUserRegistry();
 		const char *KeyLocation = "[Software\\\\Roblox\\\\RobloxStudio\\\\LoggedInUsersStore\\\\https:\\\\www.roblox.com]";
 
 		uint32_t UserIdLen = strlen(UserId), NameLen = strlen(Name), URLLen = strlen(URL);
-		uint32_t FormatLen = strlen(NEW_USER), RegFileLen = strlen(RegistryFileName);
-		uint32_t NewBufferLen = UserIdLen + NameLen + URLLen + FormatLen - 5;
+		uint32_t FormatLen = strlen(NEW_USER), NewBufferLen = UserIdLen + NameLen + URLLen + FormatLen - 5;
 		uint32_t OldKeyLen = 0, RegFileContentSize = 0;
 
-		char *Prefix = GetPrefixPath(RegFileLen + 1);
 		char *Buffer = malloc(NewBufferLen);
 		char *KeyContent = NULL, *RegFileContent = NULL, *KeyStart = NULL;
 
@@ -95,26 +116,11 @@ int8_t AddNewUser(char *restrict UserId, char *restrict Name, char *restrict URL
 
 		sprintf(Buffer, NEW_USER, UserId, Name, URL);
 
-		memcpy(Prefix + strlen(Prefix), RegistryFileName, RegFileLen + 1);
-		UserRegistry = fopen(Prefix, "r+");
-
-		if (unlikely(!UserRegistry)) {
-				Error("[ERROR]: Unable to open registry file.", ERR_STANDARD | ERR_NOEXIT);
+		if (unlikely(!UserRegistry))
 				goto error;
-		}
 
-		fseek(UserRegistry, 0, SEEK_END);
-		RegFileContentSize = ftell(UserRegistry);
-		fseek(UserRegistry, 0, SEEK_SET);
-
-		RegFileContent = malloc((RegFileContentSize + NewBufferLen + 1) * sizeof(char));
-
-		if (unlikely(!RegFileContent))
-				Error("[ERROR]: Unable to allocate RegFileContent during AddNewUser call.", ERR_MEMORY);
-
-		fread(RegFileContent, sizeof(char), RegFileContentSize, UserRegistry);
+		RegFileContent = ReadFileToBuffer(UserRegistry, &RegFileContentSize);
 		RegFileContent[RegFileContentSize] = '\0';
-
 		KeyStart = strstr(RegFileContent, KeyLocation);
 
 		if (unlikely(!KeyStart)) {
@@ -153,14 +159,12 @@ int8_t AddNewUser(char *restrict UserId, char *restrict Name, char *restrict URL
 		fclose(UserRegistry);
 		free(KeyContent);
 		free(Buffer);
-		free(Prefix);
 		free(RegFileContent);
 		return 0;
 error:
 		if (UserRegistry)
 				fclose(UserRegistry);
 
-		free(Prefix);
 		free(Buffer);
 
 		if (RegFileContent)

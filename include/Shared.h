@@ -30,7 +30,8 @@
 typedef enum ErrorFlags {
 		ERR_STANDARD  = (1 << 0),
 		ERR_MEMORY    = (1 << 1),
-		ERR_NOEXIT    = (1 << 2)
+		ERR_NOEXIT    = (1 << 2),
+		ERR_WARNING   = (1 << 3)
 } ErrorFlags;
 
 typedef struct MemoryStruct {
@@ -94,11 +95,13 @@ int8_t   BuildDirectoryTree(char *Path);
 uint64_t QueryDiskSpace();
 int32_t  DeleteFile(const char *pathname, const struct stat *sbuf, int32_t type, struct FTW *ftwb);
 char     *BuildString(uint8_t Elements, ...);
+char 				*ReadFileToBuffer(FILE *Ptr, uint32_t *PtrSize);
 
 /* Wine.c */
 int8_t  SetupPrefix();
 int8_t  SetupWine(uint8_t CheckExistence);
 int8_t  AddNewUser(char *restrict UserId, char *restrict Name, char *restrict URL);
+FILE*   GetUserRegistry();
 void    RunWineCfg();
 void    Run(char *restrict Argument, char *restrict Version);
 
@@ -106,7 +109,7 @@ void    Run(char *restrict Argument, char *restrict Version);
 extern FILE* PwootieFile;
 
 void   PwootieExit();
-void   PwootieWriteEntry(char *Entry, char *Data);
+void   PwootieWriteEntry(char *restrict Entry, char *restrict Data);
 int8_t OpenPwootieFile();
 char   *PwootieReadEntry(char *Entry);
 
