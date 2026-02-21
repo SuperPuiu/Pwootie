@@ -88,7 +88,7 @@ EnvInfoStruct *FetchEnvInfo(char *StudioVersion) {
 		FILE *WineVersionFile = NULL;
 
 		const char *WineCommand = " --version";
-		char *WineExec = PwootieReadEntry("wine_binary");
+		char *WineExec = PwootieReadEntry("wine_binary", 0);
 		uint8_t FreeWineExec = 1;
 
 		if (unlikely(!WineExec)) {
