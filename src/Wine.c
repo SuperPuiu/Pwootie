@@ -7,8 +7,7 @@
 char NFTW_BinPath[PATH_MAX] = {0};
 
 /* Used internally by nftw. */
-static int32_t Search(const char *PathName, const struct stat *sbuf, int32_t Type, struct FTW *ftwb) {
-		unused(sbuf);
+static int32_t Search(const char *PathName, const struct stat *StatBuffer, int32_t Type, struct FTW *ftwb) {
 		unused(ftwb);
 
 		uint32_t PathLen = strlen(PathName);
@@ -18,7 +17,7 @@ static int32_t Search(const char *PathName, const struct stat *sbuf, int32_t Typ
 				SrcIndex--;
 		SrcIndex++;
 
-		if ((strncmp(PathName + SrcIndex, "wineserver", 10) == 0) && Type == FTW_F) {
+		if ((strcmp(PathName + SrcIndex, "wineserver") == 0) && Type == FTW_F && StatBuffer->st_mode & S_IXUSR) {
 				memcpy(NFTW_BinPath, PathName, PathLen - 6);
 				NFTW_BinPath[PathLen - 6] = 0;
 				return 1;
