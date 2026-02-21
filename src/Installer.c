@@ -2,31 +2,29 @@
 #include <errno.h>
 
 /* Functions found in Packages.c */
-int8_t      DownloadPackages(FetchStruct *Fetched, char *Version, char *Checksums);
-int8_t      InstallPackages(FetchStruct *Fetched, char *Version, char *Checksums);
+int8_t      DownloadPackages(FetchStruct *Fetched, char *restrict Version, char *restrict Checksums);
+int8_t      InstallPackages(FetchStruct *Fetched, char *restrict Version, char *restrict Checksums);
 char        *FormatChecksums(FetchStruct *Fetched);
-FetchStruct *FetchPackages(char *Version);
+FetchStruct *FetchPackages(char *restrict Version, char *restrict Checksums);
 
 void DeleteVersion(char *Version) {
-		uint32_t InstallDirLength = strlen(INSTALL_DIR), HomeLength = strlen(getenv("HOME"));
-		uint32_t VersionLength = strlen(Version);
-		uint32_t Total = InstallDirLength + HomeLength + VersionLength + 3;
-
-		char *VersionPath = malloc(Total * sizeof(char));
-
-		if (unlikely(!VersionPath))
-				Error("[FATAL]: Unable to allocate VersionPath during DeleteVersion call.", ERR_MEMORY);
-
-		memcpy(VersionPath, getenv("HOME"), HomeLength);
-		memcpy(VersionPath + HomeLength + 1, INSTALL_DIR, InstallDirLength);
-		memcpy(VersionPath + HomeLength + InstallDirLength + 2, Version, VersionLength);
-		VersionPath[HomeLength] = VersionPath[HomeLength + InstallDirLength + 1] = '/';
-		VersionPath[Total - 1] = '\0';
+		char *VersionPath = GetVersionPath(Version, 0);
 
 		if (unlikely(nftw(VersionPath, DeleteFile, 10, FTW_DEPTH | FTW_MOUNT | FTW_PHYS) < 0))
 				Error("[ERROR]: Failed to remove %s.", ERR_STANDARD | ERR_NOEXIT, VersionPath);
 
 		free(VersionPath);
+}
+
+uint8_t VersionFolderExists(char *Version) {
+		/* We could have more checks but whatever. */
+		char *VersionPath = GetVersionPath(Version, 0);
+
+		if (!mkdir(VersionPath, 0755) && errno != EEXIST)
+				return -1;
+
+		free(VersionPath);
+		return 0;
 }
 
 /* Install() function handles the installation process using the functions found in Packages.c
@@ -42,15 +40,19 @@ int8_t Install(char *Version, uint8_t CheckVersion) {
 		char *LastVersion = NULL;
 		char *Checksums = NULL;
 
-		if (PwootieFile)
-				Checksums = PwootieReadEntry("checksums");
+		if (likely(PwootieFile))
+				Checksums = PwootieReadEntry("checksums", 0);
 
-		if (CheckVersion == 1 && PwootieFile) {
-				LastVersion = PwootieReadEntry("version");
+		if (PwootieFile) {
+				LastVersion = PwootieReadEntry("version", 0);
 
-				if (LastVersion) {
+				if (CheckVersion && LastVersion) {
 						if (strcmp(LastVersion, Version) == 0) {
 								printf("[INFO]: Roblox studio seems to be up-to-date. Aborting installation process.\n");
+								free(LastVersion);
+								return 0;
+						} else if (VersionFolderExists(Version)) {
+								printf("[INFO]: %s folder found. Using that as current roblox version.\n", Version);
 								free(LastVersion);
 								return 0;
 						}
@@ -59,7 +61,7 @@ int8_t Install(char *Version, uint8_t CheckVersion) {
 
 		/* First step: get a list of packages we have to download, along with their checksum, real size and compressed size.
 			* FetchStruct also contains some additional information helpful to other functions. */
-		Fetched = FetchPackages(Version);
+		Fetched = FetchPackages(Version, Checksums);
 		if (unlikely(!Fetched))
 				goto error;
 
@@ -91,9 +93,13 @@ int8_t Install(char *Version, uint8_t CheckVersion) {
 		/* Create the fast flags file. */
 		CreateFFlags(Version, LastVersion);
 
-		/* Delete the old version, if it exists. */
+		/* Delete the old version, if it exists and if the user agrees. */
 		if (LastVersion) {
-				DeleteVersion(LastVersion);
+				if (strcmp(LastVersion, Version) != 0) {
+						if (AskForConfirmation("Delete the old installed version of studio? [Y/N]"))
+								DeleteVersion(LastVersion);
+				}
+
 				free(LastVersion);
 		}
 
