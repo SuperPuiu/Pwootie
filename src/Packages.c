@@ -10,14 +10,14 @@
 #define APP_SETTINGS_DATA   "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\r\n<Settings>\r\n        <ContentFolder>content</ContentFolder>\r\n        <BaseUrl>http://www.roblox.com</BaseUrl>\r\n</Settings>\r\n"
 
 /* This is ugly. */
-void ChecksumToString(uint8_t *restrict Checksum, char *restrict Buffer) {
+static inline void ChecksumToString(uint8_t *restrict Checksum, char *restrict Buffer) {
 		uint8_t BufPosition = 0;
 		char l_Buf[3];
 
-		for (uint8_t i = 0; i < 16; i++) {
+		for (uint8_t i = 0; i < 16; i++, BufPosition += 2) {
 				sprintf(l_Buf, "%02x", Checksum[i]);
-				memcpy(Buffer + BufPosition, l_Buf, 2);
-				BufPosition += 2;
+				Buffer[BufPosition] = l_Buf[0];
+				Buffer[BufPosition + 1] = l_Buf[1];
 		}
 
 		Buffer[BufPosition] = '\0';
@@ -26,24 +26,21 @@ void ChecksumToString(uint8_t *restrict Checksum, char *restrict Buffer) {
 /* Prototypes are found in Installer.c */
 char *FormatChecksums(FetchStruct *Fetched) {
 		const uint8_t ChecksumSize = 32;
-		uint32_t SrcIndex = 0, Offset = 0;
+		uint32_t Offset = 0;
 
-		/* We add Fetched->TotalPackages for the semicolons. We may also be.. Overallocating. */
-		char *Checksums = malloc((Fetched->TotalPackages * ChecksumSize + Fetched->TotalPackages * Fetched->LongestName + Fetched->TotalPackages) * sizeof(char));
+		/* We add Fetched->TotalPackages for the semicolons. */
+		char *Checksums = malloc((Fetched->TotalPackages * ChecksumSize + Fetched->TotalPackages) * sizeof(char));
 
 		if (unlikely(!Checksums))
 				Error("[FATAL]: Unable to allocate Checksums buffer during FormatChecksums call.", ERR_MEMORY);
 
-		for (; SrcIndex < Fetched->TotalPackages; SrcIndex++) {
+		for (uint32_t SrcIndex = 0; SrcIndex < Fetched->TotalPackages; SrcIndex++) {
 				Package *Current = &Fetched->PackageList[SrcIndex];
-				uint32_t NameLen = strlen(Current->Name);
 
 				memcpy(Checksums + Offset, Current->Checksum, ChecksumSize);
-				memcpy(Checksums + Offset + ChecksumSize + 1, Current->Name, NameLen);
-				Checksums[Offset + ChecksumSize] = '-';
-				Checksums[Offset + ChecksumSize + NameLen + 1] = ';';
+				Checksums[Offset + ChecksumSize + 1] = ';';
 
-				Offset += NameLen + ChecksumSize + 2;
+				Offset += ChecksumSize + 1;
 		}
 
 		Checksums[Offset] = '\0';
@@ -51,7 +48,7 @@ char *FormatChecksums(FetchStruct *Fetched) {
 		return Checksums;
 }
 
-int8_t InstallPackages(FetchStruct *Fetched, char *Version, char *Checksums) {
+int8_t InstallPackages(FetchStruct *Fetched, char *restrict Version, char *restrict Checksums) {
 		CURLcode  Response;
 		FILE      *Installer;
 
@@ -60,21 +57,18 @@ int8_t InstallPackages(FetchStruct *Fetched, char *Version, char *Checksums) {
 		uint32_t SettingsLen = strlen(APP_SETTINGS_DATA), LengthVersion = strlen(Version);
 		uint32_t InstallerLength = strlen(OFFICIAL_INSTALLER), TempDirLength = strlen(TEMP_PWOOTIE_FOLDER);
 		uint32_t InstallDirLength = strlen(INSTALL_DIR), HomeLength = strlen(getenv("HOME"));
-		uint32_t InstallDirTotal = HomeLength + InstallDirLength + LengthVersion + 3 + 253;
 		uint32_t AppSettingsLen = strlen(APP_SETTINGS);
 
 		/* The 'Official' string is built inside of this function only to reuse it later. Same for 'InstallDir'. */
 		char **Instructions   = NULL;
+		char *InstallDir      = NULL;
 		char *Official        = malloc((InstallerLength + TempDirLength + 64 + 1) * sizeof(char));
-		char *InstallDir      = malloc((InstallDirTotal) * sizeof(char));
 		char *FullURL         = BuildString(4, CDN_URL, Version, "-", OFFICIAL_INSTALLER);
 
 		unused(Checksums);
 
 		if (unlikely(!Official))
 				Error("[FATAL]: Unable to allocate Official during InstallPackages call.", ERR_MEMORY);
-		else if (unlikely(!InstallDir))
-				Error("[FATAL]: Unable to allocate InstallDir during InstallPackages call.", ERR_MEMORY);
 
 		/* Construct official downloaded path. */
 		memcpy(Official, TEMP_PWOOTIE_FOLDER, TempDirLength);
@@ -82,10 +76,8 @@ int8_t InstallPackages(FetchStruct *Fetched, char *Version, char *Checksums) {
 		Official[InstallerLength + TempDirLength] = '\0';
 
 		/* Construct installation directory path. */
-		memcpy(InstallDir, getenv("HOME"), HomeLength);
-		memcpy(InstallDir + HomeLength + 1, INSTALL_DIR, InstallDirLength);
-		memcpy(InstallDir + HomeLength + InstallDirLength + 2, Version, LengthVersion);
-		InstallDir[HomeLength] = InstallDir[HomeLength + InstallDirLength + 1] = InstallDir[HomeLength + InstallDirLength + LengthVersion + 2] = '/';
+		InstallDir = GetVersionPath(Version, 253);
+		InstallDir[HomeLength + InstallDirLength + LengthVersion + 2] = '/';
 		InstallDir[HomeLength + InstallDirLength + LengthVersion + 3] = '\0';
 
 		/* Download installer in TEMP_PWOOTIE_FOLDER folder. */
@@ -212,8 +204,7 @@ int8_t InstallPackages(FetchStruct *Fetched, char *Version, char *Checksums) {
 						NewFile = fopen(InstallDir, "wb");
 
 						if (unlikely(!NewFile)) {
-								Error("[ERROR]: Unable to open a file to write contents.", ERR_STANDARD | ERR_NOEXIT);
-								Error(InstallDir, ERR_STANDARD | ERR_NOEXIT);
+								Error("[ERROR]: Unable to open file at path %s to write contents.", ERR_STANDARD | ERR_NOEXIT, InstallDir);
 								goto error;
 						}
 
@@ -278,7 +269,7 @@ error:
 		return -1;
 }
 
-int8_t DownloadPackages(FetchStruct *Fetched, char *Version, char *Checksums) {
+int8_t DownloadPackages(FetchStruct *Fetched, char *restrict Version, char *restrict Checksums) {
 		uint32_t LengthURL = strlen(CDN_URL), LengthVersion = strlen(Version), RootPartLength = strlen(TEMP_PWOOTIE_FOLDER);
 		uint8_t Increment = 0;
 
@@ -422,7 +413,7 @@ error:
 		return -1;
 }
 
-FetchStruct* FetchPackages(char *Version) {
+FetchStruct* FetchPackages(char *restrict Version, char *restrict Checksums) {
 		MemoryStruct ManifestContent;
 
 		/* Last time I counted there were 35 packages. Hopefully I didn't count them wrong. */
@@ -448,23 +439,21 @@ FetchStruct* FetchPackages(char *Version) {
 				goto error;
 		}
 
-		/* Construct PackagesData. Inside the for loop we're also allocating more space for PackagesData.
-			* We're skipping first 3 bytes, aka "v0\n"*/
+		/* Construct PackagesData. Inside the for loop we're also allocating more space for PackagesData if needed.
+			* We're skipping first 3 bytes, aka "v0\n" */
 		for (uint32_t i = 4; i < ManifestContent.Size; i++) {
 				uint32_t SizePosition = 0, ZipSizePosition = 0, NamePosition = 0;
 				/* Sizes need to be converted into numbers. */
 				char SizeBuf[64], ZipSizeBuf[64];
 
 				if (PackageArraySize == CurrentPackage) {
-						/* Allocate PackageArraySize * 2 more space for packages, to avoid making a lot of expensive malloc calls.
+						/* Allocate PackageArraySize + 4 more space for packages, to avoid making a lot of expensive malloc calls.
 							* We might be wasting a bit of memory here. */
-						PackageArraySize *= 2;
+						PackageArraySize += 4;
 						Package *l_PackagesData = realloc(PackagesData, sizeof(Package) * PackageArraySize);
 
-						if (unlikely(!l_PackagesData)) {
-								Error("[ERROR]: Unable to reallocate PackagesData from GetPackages function.", ERR_STANDARD | ERR_NOEXIT);
-								goto error;
-						}
+						if (unlikely(!l_PackagesData))
+								Error("[FATAL]: Unable to reallocate PackagesData from GetPackages function.", ERR_MEMORY);
 
 						PackagesData = l_PackagesData;
 				}
@@ -480,7 +469,7 @@ FetchStruct* FetchPackages(char *Version) {
 
 				/* Next read the checksum. We know the size of the checksum already. */
 				memcpy(PackagesData[CurrentPackage].Checksum, ManifestContent.Memory + i, 32);
-				i += 34;
+				i += 34; /* Skip \r and \n as well. */
 
 				/* Read the uncompressed size. */
 				for (; ManifestContent.Memory[i] != '\n'; i++, SizePosition++)
@@ -502,6 +491,19 @@ FetchStruct* FetchPackages(char *Version) {
 						ReturnStruct->LongestName = NamePosition;
 
 				CurrentPackage++;
+		}
+
+		if (Checksums) {
+				for (uint8_t i = 0; i < CurrentPackage; i++) {
+						if (!strstr(Checksums, PackagesData[i].Checksum)) {
+								PackagesData[i].Download = 1;
+								printf("[DEBUG]: %s has to be redownloaded.\n", PackagesData[i].Name);
+								continue;
+						}
+
+						PackagesData[i].Download = 0;
+						printf("[DEBUG]: %s doesn't have to be redownloaded.\n", PackagesData[i].Name);
+				}
 		}
 
 		ReturnStruct->TotalPackages = CurrentPackage;
