@@ -4,9 +4,6 @@
 
 #include <unistd.h>
 
-const char *PREFIX = "prefix";
-const char *WINEPREFIX = "WINEPREFIX";
-
 char NFTW_BinPath[PATH_MAX] = {0};
 
 /* Used internally by nftw. */
@@ -21,8 +18,9 @@ static int32_t Search(const char *PathName, const struct stat *sbuf, int32_t Typ
 				SrcIndex--;
 		SrcIndex++;
 
-		if ((strncmp(PathName + SrcIndex, "wine64", 6) == 0 || strncmp(PathName + SrcIndex, "wine", 5) == 0) && Type == FTW_F) {
-				memcpy(NFTW_BinPath, PathName, PathLen + 1);
+		if ((strncmp(PathName + SrcIndex, "wineserver", 10) == 0) && Type == FTW_F) {
+				memcpy(NFTW_BinPath, PathName, PathLen - 6);
+				NFTW_BinPath[PathLen - 6] = 0;
 				return 1;
 		}
 
@@ -31,14 +29,14 @@ static int32_t Search(const char *PathName, const struct stat *sbuf, int32_t Typ
 
 /* GetPrefixPath() returns the built prefix path. Allows for ExtraBytes to be allocated by passing a number argument.
 	* @return always a char array. */
-static char *GetPrefixPath(uint32_t ExtraBytes) {
+char *GetPrefixPath(uint32_t ExtraBytes) {
 		char *HomeEnv = getenv("HOME");
 
 		if (!HomeEnv)
 				Error("No HOME environment variable found. Aborting.", ERR_STANDARD);
 
 		uint32_t HomeLength = strlen(HomeEnv), InstallDirLength = strlen(INSTALL_DIR);
-		uint32_t PrefixLength = strlen(PREFIX);
+		uint32_t PrefixLength = strlen("prefix");
 
 		char *Location = malloc((HomeLength + InstallDirLength + PrefixLength + ExtraBytes + 4) * sizeof(char));
 
@@ -47,7 +45,7 @@ static char *GetPrefixPath(uint32_t ExtraBytes) {
 
 		memcpy(Location, HomeEnv, HomeLength);
 		memcpy(Location + HomeLength + 1, INSTALL_DIR, InstallDirLength);
-		memcpy(Location + HomeLength + InstallDirLength + 2, PREFIX, PrefixLength);
+		memcpy(Location + HomeLength + InstallDirLength + 2, "prefix", PrefixLength);
 		Location[HomeLength] = Location[HomeLength + InstallDirLength + 1] = Location[HomeLength + InstallDirLength + PrefixLength + 2] =  '/';
 		Location[HomeLength + InstallDirLength + PrefixLength + 3] = '\0';
 
@@ -176,7 +174,7 @@ error:
 		return -1;
 }
 
-char *GetDefaultWineBinary() {
+char *GetDefaultWineBinary(uint32_t ExtraBytes) {
 		char *PathEnv = getenv("PATH");
 		char *WineBinPath = NULL;
 		char SearchPath[PATH_MAX];
@@ -202,7 +200,7 @@ char *GetDefaultWineBinary() {
 								continue;
 						}
 
-						WineBinPath = malloc((SearchPathIndex + 5) * sizeof(char));
+						WineBinPath = malloc((SearchPathIndex + ExtraBytes + 5) * sizeof(char));
 
 						if (unlikely(!WineBinPath))
 								Error("[FATAL]: Unable to allocate WineBinPath during GetDefaultWineBinary call.", ERR_MEMORY);
@@ -313,8 +311,8 @@ error:
 int8_t SetupWine(uint8_t CheckExistence) {
 		const char *WINE_INSTALL_DIR = "wine";
 		char *DownloadLink = "https://github.com/vinegarhq/wine-builds/releases/download/10.16/vinegarhq-wine-10.16.tar.xz";
-		char *UpdateWine = PwootieReadEntry("update_wine");
-		char *ForcedLink = PwootieReadEntry("wine_link");
+		char *UpdateWine = PwootieReadEntry("update_wine", 0);
+		char *ForcedLink = PwootieReadEntry("wine_link", 0);
 
 		printf("[INFO]: Preparing to download WINE.\n");
 
@@ -346,7 +344,6 @@ int8_t SetupWine(uint8_t CheckExistence) {
 
 		char *Path = malloc(Total * sizeof(char)), *PathCopy = malloc(Total * sizeof(char));
 		char *Command = malloc(Total * 2 + 3 + 4);
-		FILE *TarFile = NULL;
 
 		memcpy(Path, getenv("HOME"), HomeLength);
 		memcpy(Path + HomeLength + 1, INSTALL_DIR, InstallDirLength);
@@ -368,7 +365,7 @@ int8_t SetupWine(uint8_t CheckExistence) {
 		printf("Downloading %s.\n", DownloadLink);
 		Response = CurlDownloadNoFile(DownloadLink, Path);
 
-		if (unlikely(Response->Response != CURLE_OK)) {
+		if (unlikely(Response->Response != CURLE_OK || Response->FileName[0] == '\0')) {
 				Error("[ERROR]: Failed to download the tar file. (cURL error: %s)", ERR_STANDARD | ERR_NOEXIT, curl_easy_strerror(Response->Response));
 				goto error;
 		}
@@ -399,8 +396,13 @@ int8_t SetupWine(uint8_t CheckExistence) {
 
 		/* im not going to memcpy this. */
 		printf("Unzipping new version..\n");
-		sprintf(Command, "tar -xvf %s -C %s > /dev/null 2>&1", Path, PathCopy);
-		system(Command);
+		sprintf(Command, "tar -xf %s -C %s > /dev/null 2>&1", Path, PathCopy);
+
+		if (unlikely(system(Command) != 0)) {
+				Error("[ERROR]: tar -xf failed.", ERR_STANDARD | ERR_NOEXIT);
+				goto error;
+		}
+
 		printf("Unzipped new version.\n");
 
 		/* Remove zip file. */
@@ -443,9 +445,6 @@ error:
 		if (ForcedLink)
 				free(ForcedLink);
 
-		if (TarFile)
-				fclose(TarFile);
-
 		if (Response) {
 				if (Response->FileStream)
 						fclose(Response->FileStream);
@@ -468,8 +467,8 @@ int8_t SetupPrefix() {
 		const char *D3DX11_43 = "winetricks d3dx11_43 > /dev/null 2>&1";
 		const char *DXVK = "winetricks dxvk > /dev/null 2>&1";
 
-		char *DEBUG_ENTRY = PwootieReadEntry("debug");
-		char *WINE_BINARY = PwootieReadEntry("wine_binary");
+		char *DEBUG_ENTRY = PwootieReadEntry("debug", 0);
+		char *WINE_BINARY = PwootieReadEntry("wine_binary", 0);
 		uint8_t FreePath = 1;
 
 		if (unlikely(!WINE_BINARY)) {
@@ -505,7 +504,7 @@ int8_t SetupPrefix() {
 		errno = 0;
 
 		/* https://www.man7.org/linux/man-pages/man3/setenv.3.html */
-		setenv(WINEPREFIX, Location, 1);
+		setenv("WINEPREFIX", Location, 1);
 
 		/* Install required dlls for studio to launch. Check status values. */
 		printf("Installing d3dx11_43..\n");
@@ -534,15 +533,16 @@ void RunWineCfg() {
 		uint32_t WineExecLen;
 
 		char *Prefix = GetPrefixPath(0);
-		char *WineExec = PwootieReadEntry("wine_binary");
+		char *WineExec = PwootieReadEntry("wine_binary", 0);
 		char *Command;
 
-		if (!WineExec) {
-				PwootieWriteEntry("wine_binary", "wine");
-				WineExec = malloc((strlen("wine") + 1) * sizeof(char));
+		if (unlikely(!WineExec)) {
+				WineExec = GetDefaultWineBinary(0);
 
 				if (!WineExec)
-						Error("[FATAL]: Unable to allocate memory for WINE_EXEC.", ERR_MEMORY);
+						return;
+
+				PwootieWriteEntry("wine_binary", WineExec);
 		}
 
 		WineExecLen = strlen(WineExec);
@@ -561,7 +561,7 @@ void RunWineCfg() {
 				break;
 		}
 
-		setenv(WINEPREFIX, Prefix, 1);
+		setenv("WINEPREFIX", Prefix, 1);
 
 		if (unlikely(ExecProgram(Command, 0, 0, Command, NULL) != 0)) {
 				printf("[ERROR]: ExecProgram(%s) returned non zero value. Running default winecfg.\n", Command);
@@ -583,19 +583,18 @@ void Run(char *restrict Argument, char *restrict Version) {
 
 		char *ArgDuplicate = strdup(Argument);
 
-		char *WINE_EXEC = PwootieReadEntry("wine_binary");
-		char *DEBUG_ENTRY = PwootieReadEntry("debug");
+		char *WINE_EXEC = PwootieReadEntry("wine_binary", 0);
+		char *DEBUG_ENTRY = PwootieReadEntry("debug", 0);
 		uint8_t Silence = 1;
 
 		/* If the wine_binary entry doesn't exist, just create a dummy one and hope wine exists. */
-		if (!WINE_EXEC) {
-				char *DefaultWine = GetDefaultWineBinary();
+		if (unlikely(!WINE_EXEC)) {
+				WINE_EXEC = GetDefaultWineBinary(0);
 
-				if (!DefaultWine)
+				if (unlikely(!WINE_EXEC))
 						return;
 
-				PwootieWriteEntry("wine_binary", DefaultWine);
-				WINE_EXEC = DefaultWine;
+				PwootieWriteEntry("wine_binary", WINE_EXEC);
 		}
 
 		if (DEBUG_ENTRY) {
@@ -620,7 +619,7 @@ void Run(char *restrict Argument, char *restrict Version) {
 		memcpy(Executable + HomeLength + InstallLen + VersionLen + 3, EXECUTABLE, ExecutableLen + 1);
 		Executable[HomeLength] = Executable[HomeLength + InstallLen + 1] = Executable[HomeLength + InstallLen + VersionLen + 2] = '/';
 
-		setenv(WINEPREFIX, Location, 1);
+		setenv("WINEPREFIX", Location, 1);
 		ExecProgram(WINE_EXEC, Silence, 1, Executable, ArgDuplicate, NULL);
 
 		free(Executable);
