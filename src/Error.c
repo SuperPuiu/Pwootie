@@ -10,6 +10,7 @@
 
 /* TODO: https://unix.stackexchange.com/questions/104936/where-are-all-the-posibilities-of-storing-a-log-file */
 #define ANSI_COLOR_RED     "\x1b[31m"
+#define ANSI_COLOR_YELLOW  "\x1b[33m"
 #define ANSI_COLOR_RESET   "\x1b[0m"
 
 #define LOG_FILE          "/.local/state/PwootieLog.log"
@@ -56,7 +57,7 @@ void Error(char *String, uint8_t Flags, ...) {
 
 		fprintf(Debug, ChosenFormat, Time, ErrorFormatted, l_Errno != 0 ? strerror(l_Errno) : "NULL");
 out:
-		printf(ANSI_COLOR_RED);
+		printf(ERR_WARNING & Flags ? ANSI_COLOR_YELLOW : ANSI_COLOR_RED);
 		printf(ChosenFormat, Time, ErrorFormatted, l_Errno != 0 ? strerror(l_Errno) : "NULL");
 		printf(ANSI_COLOR_RESET);
 
@@ -67,7 +68,7 @@ out:
 				exit(EXIT_FAILURE);
 }
 
-void l_SegFaultHandler(int _, siginfo_t *__, void *___) {
+static void l_SegFaultHandler(int _, siginfo_t *__, void *___) {
 		PwootieExit();
 
 		/* funny */
