@@ -35,10 +35,12 @@ char *GetCookie(char *UserId) {
 		sprintf(KeyLocation, CookieKeyLocationFmt, UserId);
 
 		free(KeyLocation);
+		free(EncryptionKey);
 		fclose(UserRegistry);
 		return CookieData;
 error:
 		free(KeyLocation);
+		free(EncryptionKey);
 		fclose(UserRegistry);
 		return NULL;
 }
