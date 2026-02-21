@@ -22,7 +22,7 @@ int8_t OpenPwootieFile() {
 
 				/* Maybe creation failed. */
 				if (unlikely(!PwootieFile)) {
-						Error("Unable to create PwootieFile.", ERR_STANDARD | ERR_NOEXIT);
+						Error("[FATAL]: Unable to create PwootieFile.", ERR_STANDARD | ERR_NOEXIT);
 						free(Path);
 						return -1;
 				}
@@ -48,7 +48,7 @@ int8_t OpenPwootieFile() {
 
 /* PwootieGetEntry()'s whole purpose is to get the start of the entry within the buffer.
 	* @return -1 if the entry doesn't exist or a positive number representing the index of where the entry starts in the buffer. */
-int32_t PwootieGetEntry(char *Entry) {
+static int32_t PwootieGetEntry(char *Entry) {
 		char EntryName[128];
 
 		for (uint32_t SrcIndex = 0; SrcIndex < BufferSize; SrcIndex++) {
@@ -62,7 +62,7 @@ int32_t PwootieGetEntry(char *Entry) {
 						if (unlikely(EntryIndex == 128))
 								Error("[FATAL]: EntryIndex reached number 128. Is the PwooteFile corrupt?", ERR_STANDARD);
 						else if (unlikely(SrcIndex == BufferSize)) {
-								Error("[WARNING]: SrcIndex reached BufferSize while searching for %s. Is the PwootieFile corrupt?", ERR_STANDARD, Entry);
+								Error("[WARNING]: SrcIndex reached BufferSize while searching for %s. Is the PwootieFile corrupt?", ERR_STANDARD | ERR_WARNING, Entry);
 								return -1;
 						}
 				} while (PwootieBuffer[SrcIndex] != '=');
@@ -72,7 +72,7 @@ int32_t PwootieGetEntry(char *Entry) {
 				if (strcmp(EntryName, Entry) == 0)
 						return SrcIndex - EntryIndex;
 
-				while (PwootieBuffer[SrcIndex] != '\n')
+				while (PwootieBuffer[SrcIndex] != '\n' && SrcIndex < BufferSize)
 						SrcIndex++;
 		}
 
@@ -81,7 +81,7 @@ int32_t PwootieGetEntry(char *Entry) {
 
 /* This is the helper function which reads the content of an entry.
 	* @return NULL if the entry wasn't added yet.*/
-char* PwootieReadEntry(char *Entry) {
+char* PwootieReadEntry(char *Entry, uint32_t ExtraBytes) {
 		/* Is the PwootieFile open? */
 		if (unlikely(!PwootieFile))
 				return NULL;
@@ -113,6 +113,13 @@ char* PwootieReadEntry(char *Entry) {
 				Data[DataIndex] = PwootieBuffer[BufferIndex];
 				BufferIndex++;
 				DataIndex++;
+		}
+
+		if (DataSize - ExtraBytes < ExtraBytes) {
+				Data = realloc(Data, sizeof(char) * (DataSize + (DataSize - ExtraBytes) + 1));
+
+				if (unlikely(!Data))
+						Error("[FATAL]: Unable to realloc Data during PwootieReadEntry.", ERR_MEMORY);
 		}
 
 		Data[DataIndex] = '\0';
@@ -165,7 +172,7 @@ void PwootieWriteEntry(char *restrict Entry, char *restrict Data) {
 						Newline++;
 
 				if (Newline == BufferSize) {
-						Error("[WARNING]: Missing ending newline for entry %s.\n", ERR_STANDARD, Entry);
+						Error("[WARNING]: Missing ending newline for entry %s.\n", ERR_STANDARD | ERR_WARNING, Entry);
 				} else {
 						uint32_t CurrentSize = (Newline - EntryIndex) + 1, RequiredSize = EntrySize + DataSize + 2;
 						int64_t Result = (int64_t)RequiredSize - (int64_t)CurrentSize;
