@@ -1,6 +1,6 @@
 BUILD_DIR = bin
 
-CFLAGS = -D_GNU_SOURCE -Wall -Wextra -flto -Wshadow -O3
+CFLAGS = -D_GNU_SOURCE -Wall -Wextra -Wshadow
 LIBS = -lcurl -lzip
 
 COMPILER = gcc
@@ -13,6 +13,8 @@ OUTPUT_TEST = $(BUILD_DIR)/PwootieTest
 
 ifeq ($(MAKECMDGOALS), test)
 	CFLAGS += -g3 -ggdb3
+else
+	CFLAGS += -flto -O3
 endif
 
 ifneq (, $(shell which gcc))
