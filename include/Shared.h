@@ -67,7 +67,7 @@ typedef struct Package {
 		char    Name[64];
 		char    Checksum[33];
 
-		uint8_t Redownload:1;
+		uint8_t Download:1;
 
 		int64_t Size;
 		int64_t ZipSize;
@@ -90,17 +90,20 @@ int8_t GetVersionData(VersionData *Data);
 int8_t Install(char *Version, uint8_t CheckVersion);
 
 /* Filesystem.c */
-void     ConvertPath(char *Path);
-int8_t   BuildDirectoryTree(char *Path);
 uint64_t QueryDiskSpace();
 int32_t  DeleteFile(const char *pathname, const struct stat *sbuf, int32_t type, struct FTW *ftwb);
+int8_t   BuildDirectoryTree(char *Path);
+void     ConvertPath(char *Path);
 char     *BuildString(uint8_t Elements, ...);
 char 				*ReadFileToBuffer(FILE *Ptr, uint32_t *PtrSize);
+char     *GetVersionPath(char *Version, uint32_t ExtraBytes);
 
 /* Wine.c */
 int8_t  SetupPrefix();
 int8_t  SetupWine(uint8_t CheckExistence);
 int8_t  AddNewUser(char *restrict UserId, char *restrict Name, char *restrict URL);
+char*   GetPrefixPath(uint32_t ExtraBytes);
+char*   GetDefaultWineBinary(uint32_t ExtraBytes);
 FILE*   GetUserRegistry();
 void    RunWineCfg();
 void    Run(char *restrict Argument, char *restrict Version);
@@ -108,10 +111,10 @@ void    Run(char *restrict Argument, char *restrict Version);
 /* Pwootie.c */
 extern FILE* PwootieFile;
 
+int8_t OpenPwootieFile();
 void   PwootieExit();
 void   PwootieWriteEntry(char *restrict Entry, char *restrict Data);
-int8_t OpenPwootieFile();
-char   *PwootieReadEntry(char *Entry);
+char   *PwootieReadEntry(char *Entry, uint32_t ExtraBytes);
 
 /* Instructions.c */
 char   **ExtractInstructions(FILE *Installer, FetchStruct *Fetched);
@@ -121,14 +124,15 @@ void   Error(char *String, uint8_t Flags, ...);
 void   SetupSignalHandler();
 
 /* CurlWrappers.c */
+extern CURLM    *CurlMulti;
+
 void            SetupHandles();
 void            ResetMultiCurl(uint16_t Total);
-int32_t         CurlGetHandleFromMessage(CURLMsg *Message);
 int8_t          CurlMultiSetup(FILE **Files, char **Links, uint16_t Total);
+int32_t         CurlGetHandleFromMessage(CURLMsg *Message);
 CURLcode        CurlDownload(FILE *File, char *WithURL);
 CURLcode        CurlGet(MemoryStruct *Chunk, char *WithURL);
 ResponseStruct* CurlDownloadNoFile(char *WithURL, char *DownloadPath);
-extern CURLM    *CurlMulti;
 
 /* FFlags.c */
 int8_t  ApplyFFlag(char *restrict EntryName, char *restrict Data);
@@ -138,6 +142,14 @@ int8_t  CreateFFlags(char *restrict Version, char *restrict OldVersion);
 char    *ReadFFlag(char *EntryName);
 char    *GetStudioSetting(char *Name);
 void    ExitFFlags();
+
+/* WineServer.c */
+void StartWineserver();
+void KillWineserver();
+
+/* Interactivity.c */
+uint8_t AskForConfirmation(char *InitialMessage);
+uint8_t AskForOption(uint8_t Options, char **OptionNames);
 
 /* Main.c */
 extern char *CDN_URL;
