@@ -9,7 +9,7 @@ uint32_t BufferSize = 0;
 	* @return 0 on success and -1 on failure. */
 int8_t OpenPwootieFile() {
 		/* Check if the file is already open. */
-		if (PwootieFile)
+		if (unlikely(PwootieFile))
 				return -1;
 
 		char *Path = BuildString(5, getenv("HOME"), "/", INSTALL_DIR, "/", PWOOTIE_DATA);
@@ -17,7 +17,7 @@ int8_t OpenPwootieFile() {
 		/* Try to open the file in r+ mode, if it fails then try creating it. */
 		PwootieFile = fopen(Path, "r+");
 
-		if (!PwootieFile) {
+		if (unlikely(!PwootieFile)) {
 				PwootieFile = fopen(Path, "w+");
 
 				/* Maybe creation failed. */
@@ -181,18 +181,18 @@ void PwootieWriteEntry(char *restrict Entry, char *restrict Data) {
 								memmove(
 										PwootieBuffer + (Newline + Result),
 										PwootieBuffer + Newline,
-										BufferSize - RequiredSize + 1);
-						}
+										BufferSize - Newline);
 
-						if (Result < 0)
-								BufferSize--;
+								if (Result < 0)
+										BufferSize += Result;
+						}
 				}
 		}
 
 		/* Write the entry. */
 		memcpy(PwootieBuffer + EntryIndex, Entry, EntrySize);
 		EntryIndex += EntrySize + 1;
-		PwootieBuffer[EntrySize] = '=';
+		PwootieBuffer[EntryIndex] = '=';
 
 		memcpy(PwootieBuffer + EntryIndex, Data, DataSize);
 		EntryIndex += DataSize;
