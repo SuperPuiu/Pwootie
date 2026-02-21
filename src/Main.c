@@ -13,9 +13,9 @@ int main(int argc, char **argv) {
 
 		char *StudioVersion 	= NULL;
 
-		char *CurrentVersion	= PwootieReadEntry("version");
-		char *ForcedVersion 	= PwootieReadEntry("forced_version");
-		char *ForcedCDN     	= PwootieReadEntry("cdn");
+		char *CurrentVersion	= PwootieReadEntry("version", 0);
+		char *ForcedVersion 	= PwootieReadEntry("forced_version", 0);
+		char *ForcedCDN     	= PwootieReadEntry("cdn", 0);
 
 		/* If we have a ForcedVersion, then use that. */
 		StudioVersion = ForcedVersion ? ForcedVersion : CurrentVersion;
@@ -50,14 +50,14 @@ int main(int argc, char **argv) {
 						}
 
 						if (strcmp(argv[2], "apply") == 0) {
-								if (argc < 5) {
+								if (unlikely(argc < 5)) {
 										printf("[INFO]: Apply requires two parameters, that being <Name> and <Option>.\n");
 										goto exit;
 								}
 
 								ApplyFFlag(argv[3], argv[4]);
 						} else if (strcmp(argv[2], "read") == 0) {
-								if (argc < 4) {
+								if (unlikely(argc < 4)) {
 										printf("[INFO]: fflags require one or more parameters. See the documentation for more information.\n");
 										goto exit;
 								}
@@ -71,13 +71,13 @@ int main(int argc, char **argv) {
 
 						goto exit;
 				} else if (strcmp(argv[1], "user") == 0) {
-						if (argc < 3) {
+						if (unlikely(argc < 3)) {
 								printf("[INFO]: No user option specified. (available options: add)\n");
 								goto exit;
 						}
 
 						if (strcmp(argv[2], "add") == 0) {
-								if (argc < 5) {
+								if (unlikely(argc < 5)) {
 										printf("[INFO]: Command 'user add' called with wrong number of arguments. (userid and name are required)\n");
 										goto exit;
 								}
@@ -92,7 +92,7 @@ int main(int argc, char **argv) {
 						if (strcmp(argv[2], "read") == 0) {
 
 						} else if (strcmp(argv[2], "write") == 0) {
-								if (argc < 3) {
+								if (unlikely(argc < 3)) {
 										printf("[INFO]: Command 'cookie write' called with wrong number of arguments. (cookie is required)\n");
 										goto exit;
 								}
@@ -103,6 +103,11 @@ int main(int argc, char **argv) {
 								goto exit;
 						}
 				} else if (strcmp(argv[1], "wine") == 0) {
+						if (unlikely(argc < 3)) {
+								printf("[INFO]: No wine option specified. (available options: config, setup)\n");
+								goto exit;
+						}
+
 						if (strcmp(argv[2], "config") == 0) {
 								RunWineCfg();
 								goto exit;
@@ -116,7 +121,7 @@ int main(int argc, char **argv) {
 				} else if (strcmp(argv[1], "info") == 0) {
 						EnvInfoStruct *Info = FetchEnvInfo(StudioVersion);
 
-						if (!Info) {
+						if (unlikely(!Info)) {
 								printf("[INFO]: Unable to fetch environment info.\n");
 								goto exit;
 						}
@@ -127,6 +132,21 @@ int main(int argc, char **argv) {
 						printf("=============================\n");
 
 						goto exit;
+				} else if (strcmp(argv[1], "wineserver") == 0) {
+						if (unlikely(argc < 3)) {
+								printf("[INFO]: No wineserver option specified. (available options: start, kill)\n");
+								goto exit;
+						}
+
+						if (strcmp(argv[2], "start") == 0) {
+								StartWineserver();
+								goto exit;
+						} else if (strcmp(argv[2], "kill") == 0) {
+								KillWineserver();
+								goto exit;
+						} else {
+								printf("[INFO]: Unknown wineserver option specified (available options: start, kill)\n");
+						}
 				}
 
 				/* The first argument can be the token we need to log into studio. */
@@ -137,8 +157,8 @@ int main(int argc, char **argv) {
 						StudioVersion = Data.ClientVersionUpload;
 				}
 
-				Install(StudioVersion, 1);
-				Run(NULL, StudioVersion);
+				if (likely(Install(StudioVersion, 1) == 0))
+						Run(NULL, StudioVersion);
 		}
 
 exit:
