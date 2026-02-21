@@ -29,13 +29,13 @@ int32_t DeleteFile(const char *pathname, const struct stat *sbuf, int32_t type, 
 
 /* Used internally by nftw.
 	* @return 0 on success and -1 on failure. */
-int32_t CopyEntry(const char *PathName, const struct stat *_sbuf, int32_t type, struct FTW *_ftwb) {
+int32_t CopyEntry(const char *PathName, const struct stat *_sbuf, int32_t Type, struct FTW *_ftwb) {
 		unused(_sbuf);
 		unused(_ftwb);
 
-		if (type == FTW_F) {
+		if (Type == FTW_F) {
 				return 0;
-		} else if (type == FTW_D) {
+		} else if (Type == FTW_D) {
 				mkdir(PathName, 0755);
 				return 0;
 		} else {
@@ -67,6 +67,27 @@ char *ReadFileToBuffer(FILE *Ptr, uint32_t *PtrSize) {
 				*PtrSize = Size;
 
 		return Buffer;
+}
+
+/* GetVersionPath() constructs the path to the provided studio version. User must free this manually.
+	* @return always the version path. */
+char *GetVersionPath(char *Version, uint32_t ExtraBytes) {
+		uint32_t InstallDirLength = strlen(INSTALL_DIR), HomeLength = strlen(getenv("HOME"));
+		uint32_t VersionLength = strlen(Version);
+		uint32_t Total = InstallDirLength + HomeLength + VersionLength + 3;
+
+		char *VersionPath = malloc((Total + ExtraBytes) * sizeof(char));
+
+		if (unlikely(!VersionPath))
+				Error("[FATAL]: Unable to allocate VersionPath during DeleteVersion call.", ERR_MEMORY);
+
+		memcpy(VersionPath, getenv("HOME"), HomeLength);
+		memcpy(VersionPath + HomeLength + 1, INSTALL_DIR, InstallDirLength);
+		memcpy(VersionPath + HomeLength + InstallDirLength + 2, Version, VersionLength);
+		VersionPath[HomeLength] = VersionPath[HomeLength + InstallDirLength + 1] = '/';
+		VersionPath[Total - 1] = '\0';
+
+		return VersionPath;
 }
 
 /* BuildDirectoryTree() builds a path of directories.
