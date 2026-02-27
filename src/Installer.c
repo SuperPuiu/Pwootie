@@ -1,5 +1,6 @@
 #include <Shared.h>
 #include <errno.h>
+#include <dirent.h>
 
 /* Functions found in Packages.c */
 int8_t      DownloadPackages(FetchStruct *Fetched, char *restrict Version, char *restrict Checksums);
@@ -19,9 +20,12 @@ void DeleteVersion(char *Version) {
 uint8_t VersionFolderExists(char *Version) {
 		/* We could have more checks but whatever. */
 		char *VersionPath = GetVersionPath(Version, 0);
+		DIR *VersionDirectory = opendir(VersionPath);
 
-		if (!mkdir(VersionPath, 0755) && errno != EEXIST)
-				return -1;
+		if (VersionDirectory && errno != ENOENT) {
+				closedir(VersionDirectory);
+				return 1;
+		}
 
 		free(VersionPath);
 		return 0;
