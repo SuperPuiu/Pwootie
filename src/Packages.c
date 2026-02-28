@@ -5,6 +5,9 @@
 #include <zip.h>
 #include <md5.h>
 
+#include <fcntl.h>
+#include <unistd.h>
+
 #define OFFICIAL_INSTALLER  "RobloxStudioInstaller.exe"
 #define APP_SETTINGS        "AppSettings.xml"
 #define APP_SETTINGS_DATA   "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\r\n<Settings>\r\n        <ContentFolder>content</ContentFolder>\r\n        <BaseUrl>http://www.roblox.com</BaseUrl>\r\n</Settings>\r\n"
@@ -38,7 +41,7 @@ char *FormatChecksums(FetchStruct *Fetched) {
 				Package *Current = &Fetched->PackageList[SrcIndex];
 
 				memcpy(Checksums + Offset, Current->Checksum, ChecksumSize);
-				Checksums[Offset + ChecksumSize + 1] = ';';
+				Checksums[Offset + ChecksumSize] = ';';
 
 				Offset += ChecksumSize + 1;
 		}
@@ -276,10 +279,17 @@ int8_t DownloadPackages(FetchStruct *Fetched, char *restrict Version, char *rest
 		char *FullURL = malloc((LengthURL + LengthVersion + Fetched->LongestName + 2) * sizeof(char));
 		char *ZipFilePath = malloc((RootPartLength + Fetched->LongestName + 2) * sizeof(char));
 
-		FILE **FilePointers = NULL;
-		char **LinkPointers = NULL;
+		char **BufferPointers = malloc(32 * sizeof(char*));
+		char **LinkPointers = malloc(32 * sizeof(char*));
+		int FileDescriptors[32];
+		int64_t ZipSizes[32];
 
 		unused(Checksums);
+
+		if (unlikely(!BufferPointers))
+				Error("[FATAL]: Failed to allocate BufferPointers during DownloadPackages call.", ERR_MEMORY);
+		else if (unlikely(!LinkPointers))
+				Error("[FATAL]: Failed to allocate LinkPointers during DownloadPackages call.", ERR_MEMORY);
 
 		if (unlikely(!FullURL))
 				Error("[FATAL]: Failed to allocate memory for FullURL during DownloadPackages call.", ERR_MEMORY);
@@ -287,7 +297,6 @@ int8_t DownloadPackages(FetchStruct *Fetched, char *restrict Version, char *rest
 				Error("[FATAL]: Failed to allocate memory for ZipFilePath during DownloadPackages call.", ERR_MEMORY);
 
 		memcpy(ZipFilePath, TEMP_PWOOTIE_FOLDER, RootPartLength);
-		ZipFilePath[RootPartLength] = '/';
 
 		memcpy(FullURL, CDN_URL, LengthURL);
 		memcpy(FullURL + LengthURL, Version, LengthVersion);
@@ -309,14 +318,6 @@ int8_t DownloadPackages(FetchStruct *Fetched, char *restrict Version, char *rest
 				int32_t StillRunning = 1, MessagesLeft = 0;
 				Increment = Fetched->TotalPackages - Index >= 32 ? 32 : Fetched->TotalPackages % 32;
 
-				FilePointers = malloc(Increment * sizeof(FILE*));
-				LinkPointers = malloc(Increment * sizeof(char*));
-
-				if (unlikely(!FilePointers))
-						Error("[FATAL]: Failed to allocate FilePointers during DownloadPackages call.", ERR_MEMORY);
-				else if (unlikely(!LinkPointers))
-						Error("[FATAL]: Failed to allocate LinkPointers during DownloadPackages call.", ERR_MEMORY);
-
 				for (uint32_t LinkIndex = Index; LinkIndex < Increment + Index; LinkIndex++) {
 						uint32_t  PackageNameLength = strlen(Fetched->PackageList[LinkIndex].Name);
 
@@ -324,22 +325,25 @@ int8_t DownloadPackages(FetchStruct *Fetched, char *restrict Version, char *rest
 						memcpy(FullURL + LengthURL + LengthVersion + 1, Fetched->PackageList[LinkIndex].Name, PackageNameLength);
 						FullURL[LengthURL + LengthVersion + PackageNameLength + 1] = '\0';
 
-						memcpy(ZipFilePath + RootPartLength + 1, Fetched->PackageList[LinkIndex].Name, PackageNameLength);
-						ZipFilePath[RootPartLength + PackageNameLength + 1] = '\0';
+						memcpy(ZipFilePath + RootPartLength, Fetched->PackageList[LinkIndex].Name, PackageNameLength);
+						ZipFilePath[RootPartLength + PackageNameLength] = '\0';
 
 						LinkPointers[LinkIndex - Index] = strdup(FullURL);
-						FilePointers[LinkIndex - Index] = fopen(ZipFilePath, "w+");
+						BufferPointers[LinkIndex - Index] = malloc(Fetched->PackageList[LinkIndex].ZipSize);
+						FileDescriptors[LinkIndex - Index] = open(ZipFilePath, O_CREAT | O_RDWR | O_DIRECT, 0640);
+						ZipSizes[LinkIndex - Index] = Fetched->PackageList[LinkIndex].ZipSize;
 
-						if (unlikely(!FilePointers[LinkIndex - Index])) {
-								Error("[ERROR]: Unable to open %s during DownloadPackages call.", ERR_STANDARD | ERR_NOEXIT, ZipFilePath);
-								goto error;
+						if (unlikely(!BufferPointers[LinkIndex - Index])) {
+								Error("[ERROR]: Unable to allocate one data buffer.", ERR_MEMORY);
+						} else if (FileDescriptors[LinkIndex - Index] == -1) {
+								Error("[ERROR]: Unable to open file %s.", ERR_STANDARD, ZipFilePath);
 						} else if (unlikely(!LinkPointers[LinkIndex - Index])) {
 								Error("[ERROR]: Unable to allocate link pointer during DownloadPackages call.", ERR_STANDARD | ERR_NOEXIT);
 								goto error;
 						}
 				}
 
-				if (unlikely(CurlMultiSetup(FilePointers, LinkPointers, Increment) != 0)) {
+				if (unlikely(CurlMultiSetup(BufferPointers, LinkPointers, Increment) != 0)) {
 						Error("[ERROR]: CurlMultiSetup fail.", ERR_STANDARD | ERR_NOEXIT);
 						goto error;
 				}
@@ -347,6 +351,8 @@ int8_t DownloadPackages(FetchStruct *Fetched, char *restrict Version, char *rest
 				/* https://curl.se/libcurl/c/multi-app.html */
 				do {
 						CURLMcode MultiCode = curl_multi_perform(CurlMulti, &StillRunning);
+						printf("Current running curl handles: %i\r", StillRunning);
+						fflush(stdout);
 
 						if (StillRunning)
 								MultiCode = curl_multi_poll(CurlMulti, NULL, 0, 1000, NULL);
@@ -358,6 +364,8 @@ int8_t DownloadPackages(FetchStruct *Fetched, char *restrict Version, char *rest
 								goto error;
 						}
 				} while (StillRunning);
+
+				printf("\n");
 
 				/* Make sure everything was downloaded. */
 				while ((MultiMsg = curl_multi_info_read(CurlMulti, &MessagesLeft)) != NULL) {
@@ -371,7 +379,7 @@ int8_t DownloadPackages(FetchStruct *Fetched, char *restrict Version, char *rest
 						uint8_t   Checksum[16];
 						char      ChecksumBuf[33];
 
-						md5File(FilePointers[LinkIndex], Checksum);
+						md5String(BufferPointers[LinkIndex], Checksum, ZipSizes[LinkIndex]);
 						ChecksumToString(Checksum, ChecksumBuf);
 
 						if (unlikely(memcmp(ChecksumBuf, Fetched->PackageList[Index + LinkIndex].Checksum, 32) != 0)) {
@@ -379,12 +387,12 @@ int8_t DownloadPackages(FetchStruct *Fetched, char *restrict Version, char *rest
 								goto error;
 						}
 
-						fclose(FilePointers[LinkIndex]);
+						write(FileDescriptors[LinkIndex], BufferPointers[LinkIndex], ZipSizes[LinkIndex]);
+						close(FileDescriptors[LinkIndex]);
+
+						free(BufferPointers[LinkIndex]);
 						free(LinkPointers[LinkIndex]);
 				}
-
-				free(FilePointers);
-				free(LinkPointers);
 
 				ResetMultiCurl(Increment);
 				Index += Increment;
@@ -395,6 +403,9 @@ int8_t DownloadPackages(FetchStruct *Fetched, char *restrict Version, char *rest
 		free(ZipFilePath);
 		free(FullURL);
 
+		free(BufferPointers);
+		free(LinkPointers);
+
 		return 0;
 error:
 		free(ZipFilePath);
@@ -403,11 +414,12 @@ error:
 		if (LinkPointers) {
 				for (uint8_t SrcIndex = 0; SrcIndex < Increment; SrcIndex++) {
 						free(LinkPointers[SrcIndex]);
-						fclose(FilePointers[SrcIndex]);
+						free(BufferPointers[SrcIndex]);
+						close(FileDescriptors[SrcIndex]);
 				}
 
 				free(LinkPointers);
-				free(FilePointers);
+				free(BufferPointers);
 		}
 
 		return -1;
@@ -471,17 +483,17 @@ FetchStruct* FetchPackages(char *restrict Version, char *restrict Checksums) {
 				memcpy(PackagesData[CurrentPackage].Checksum, ManifestContent.Memory + i, 32);
 				i += 34; /* Skip \r and \n as well. */
 
-				/* Read the uncompressed size. */
+				/* Read the compressed size. */
 				for (; ManifestContent.Memory[i] != '\n'; i++, SizePosition++)
-						SizeBuf[SizePosition] = ManifestContent.Memory[i];
-				SizeBuf[SizePosition - 1] = '\0';
+						ZipSizeBuf[SizePosition] = ManifestContent.Memory[i];
+				ZipSizeBuf[SizePosition - 1] = '\0';
 
 				i++;
 
-				/* Read the compressed size. */
+				/* Read the uncompressed size. */
 				for (; ManifestContent.Memory[i] != '\n'; i++, ZipSizePosition++)
-						ZipSizeBuf[ZipSizePosition] = ManifestContent.Memory[i];
-				ZipSizeBuf[ZipSizePosition - 1] = '\0';
+						SizeBuf[ZipSizePosition] = ManifestContent.Memory[i];
+				SizeBuf[ZipSizePosition - 1] = '\0';
 
 				PackagesData[CurrentPackage].Size    = atoi(SizeBuf);
 				PackagesData[CurrentPackage].ZipSize = atoi(ZipSizeBuf);
@@ -497,12 +509,10 @@ FetchStruct* FetchPackages(char *restrict Version, char *restrict Checksums) {
 				for (uint8_t i = 0; i < CurrentPackage; i++) {
 						if (!strstr(Checksums, PackagesData[i].Checksum)) {
 								PackagesData[i].Download = 1;
-								printf("[DEBUG]: %s has to be redownloaded.\n", PackagesData[i].Name);
 								continue;
 						}
 
 						PackagesData[i].Download = 0;
-						printf("[DEBUG]: %s doesn't have to be redownloaded.\n", PackagesData[i].Name);
 				}
 		}
 
