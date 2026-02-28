@@ -10,5 +10,5 @@ typedef struct{
     uint8_t digest[16];   // Result of algorithm
 } MD5Context;
 
-void md5String(char *restrict input, uint8_t *restrict result);
+void md5String(char *restrict input, uint8_t *restrict result, size_t input_size);
 void md5File(FILE *file, uint8_t *result);
