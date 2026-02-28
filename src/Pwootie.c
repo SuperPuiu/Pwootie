@@ -191,8 +191,10 @@ void PwootieWriteEntry(char *restrict Entry, char *restrict Data) {
 
 		/* Write the entry. */
 		memcpy(PwootieBuffer + EntryIndex, Entry, EntrySize);
-		EntryIndex += EntrySize + 1;
+		EntryIndex += EntrySize;
 		PwootieBuffer[EntryIndex] = '=';
+
+		EntryIndex += 1;
 
 		memcpy(PwootieBuffer + EntryIndex, Data, DataSize);
 		EntryIndex += DataSize;
