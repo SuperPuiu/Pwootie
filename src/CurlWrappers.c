@@ -13,12 +13,14 @@ static CURL *CurlHandle;
 static CURL *CurlDownloadHandle;
 static CURL *CurlDownloadArray[CURL_ARRAY_SIZE];
 
+static MemoryStruct MultiHandlesStructs[CURL_ARRAY_SIZE];
+
 CURLM *CurlMulti;
 
-static size_t WriteMemoryCallback  (void *Contents, size_t Size, size_t DataSize, void *UserPointer);
-static size_t WriteFileCallback    (void *Contents, size_t _Size, size_t DataSize, void *DownloadInfo);
-static size_t ParseDownloadHeader  (void *HeaderPtr, size_t Size, size_t DataSize, void *Info);
-static size_t WriteFileCallbackSimple(void *Contents, size_t Size, size_t nmemb, void *FileStream);
+static size_t WriteMemoryCallback    (void *Contents, size_t Size, size_t DataSize, void *UserPointer);
+static size_t WriteFileCallback      (void *Contents, size_t _Size, size_t DataSize, void *DownloadInfo);
+static size_t ParseDownloadHeader    (void *HeaderPtr, size_t Size, size_t DataSize, void *Info);
+static size_t WriteDataCallbackSimple(void *Contents, size_t Size, size_t DataSize, void *UserPointer);
 
 void SetupHandles() {
 		CurlHandle = curl_easy_init(), CurlDownloadHandle = curl_easy_init();
@@ -38,7 +40,7 @@ void SetupHandles() {
 				CurlDownloadArray[CurrentIndex] = curl_easy_init();
 
 				curl_easy_setopt(CurlDownloadArray[CurrentIndex], CURLOPT_FOLLOWLOCATION, 1L);
-				curl_easy_setopt(CurlDownloadArray[CurrentIndex], CURLOPT_WRITEFUNCTION, WriteFileCallbackSimple);
+				curl_easy_setopt(CurlDownloadArray[CurrentIndex], CURLOPT_WRITEFUNCTION, WriteDataCallbackSimple);
 				curl_easy_setopt(CurlDownloadArray[CurrentIndex], CURLOPT_USERAGENT, "PwootieDownload/1.0");
 		}
 }
@@ -54,26 +56,16 @@ CURLcode CurlGet(MemoryStruct *Chunk, char *WithURL) {
 		return curl_easy_perform(CurlHandle);
 }
 
-int32_t CurlGetHandleFromMessage(CURLMsg *Message) {
-		int32_t Index = -1;
-
-		if (Message->msg == CURLMSG_DONE) {
-				for (Index = 0; Index < CURL_ARRAY_SIZE; Index++) {
-						if (Message->easy_handle == CurlDownloadArray[Index])
-								break;
-				}
-		}
-
-		return Index;
-}
-
-int8_t CurlMultiSetup(FILE **Files, char **Links, uint16_t Total) {
-		if (Total > CURL_ARRAY_SIZE)
+int8_t CurlMultiSetup(char **Buffers, char **Links, uint16_t Total) {
+		if (unlikely(Total > CURL_ARRAY_SIZE))
 				return -1;
 
 		for (uint16_t CurrentIndex = 0; CurrentIndex < Total; CurrentIndex++) {
+				MultiHandlesStructs[CurrentIndex].Memory = Buffers[CurrentIndex];
+				MultiHandlesStructs[CurrentIndex].Size = 0;
+
 				curl_easy_setopt(CurlDownloadArray[CurrentIndex], CURLOPT_URL, Links[CurrentIndex]);
-				curl_easy_setopt(CurlDownloadArray[CurrentIndex], CURLOPT_WRITEDATA, Files[CurrentIndex]);
+				curl_easy_setopt(CurlDownloadArray[CurrentIndex], CURLOPT_WRITEDATA, &MultiHandlesStructs[CurrentIndex]);
 				curl_multi_add_handle(CurlMulti, CurlDownloadArray[CurrentIndex]);
 		}
 
@@ -189,17 +181,22 @@ static size_t WriteFileCallback(void *Contents, size_t Size, size_t nmemb, void 
 		return fwrite(Contents, Size, nmemb, Info->FileStream); /* Written bytes. */
 }
 
-static size_t WriteFileCallbackSimple(void *Contents, size_t Size, size_t nmemb, void *FileStream) {
-		return fwrite(Contents, Size, nmemb, FileStream);
+static size_t WriteDataCallbackSimple(void *Contents, size_t Size, size_t DataSize, void *UserPointer) {
+		size_t RequiredSize = Size * DataSize;
+		MemoryStruct *Memory = (MemoryStruct*)UserPointer;
+
+		memcpy(&(Memory->Memory[Memory->Size]), Contents, RequiredSize);
+		Memory->Size += RequiredSize;
+		return RequiredSize;
 }
 
 static size_t WriteMemoryCallback(void *Contents, size_t Size, size_t DataSize, void *UserPointer) {
 		size_t RequiredSize = Size * DataSize;
-		MemoryStruct *Memory = (MemoryStruct *)UserPointer;
+		MemoryStruct *Memory = (MemoryStruct*)UserPointer;
 
 		char *Pointer = realloc(Memory->Memory, Memory->Size + RequiredSize + 1);
 
-		if (Pointer == NULL) {
+		if (unlikely(Pointer == NULL)) {
 				printf("WirteMemoryCallback: not enough memory.\n");
 				return 0;
 		}

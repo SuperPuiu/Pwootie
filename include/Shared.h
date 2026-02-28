@@ -128,8 +128,7 @@ extern CURLM    *CurlMulti;
 
 void            SetupHandles();
 void            ResetMultiCurl(uint16_t Total);
-int8_t          CurlMultiSetup(FILE **Files, char **Links, uint16_t Total);
-int32_t         CurlGetHandleFromMessage(CURLMsg *Message);
+int8_t          CurlMultiSetup(char **Buffers, char **Links, uint16_t Total);
 CURLcode        CurlDownload(FILE *File, char *WithURL);
 CURLcode        CurlGet(MemoryStruct *Chunk, char *WithURL);
 ResponseStruct* CurlDownloadNoFile(char *WithURL, char *DownloadPath);
