@@ -201,10 +201,10 @@ static void md5Step(uint32_t *restrict buffer, uint32_t *restrict input){
  * Functions that run the algorithm on the provided input and put the digest into result.
  * result should be able to store 16 bytes.
  */
-void md5String(char *restrict input, uint8_t *restrict result){
+void md5String(char *restrict input, uint8_t *restrict result, size_t input_size){
   MD5Context ctx;
   md5Init(&ctx);
-  md5Update(&ctx, (uint8_t *)input, strlen(input));
+  md5Update(&ctx, (uint8_t *)input, input_size);
   md5Finalize(&ctx);
 
   memcpy(result, ctx.digest, 16);
