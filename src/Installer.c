@@ -44,10 +44,8 @@ int8_t Install(char *Version, uint8_t CheckVersion) {
 		char *LastVersion = NULL;
 		char *Checksums = NULL;
 
-		if (likely(PwootieFile))
-				Checksums = PwootieReadEntry("checksums", 0);
-
 		if (PwootieFile) {
+				Checksums = PwootieReadEntry("checksums", 0);
 				LastVersion = PwootieReadEntry("version", 0);
 
 				if (CheckVersion && LastVersion) {
@@ -126,6 +124,9 @@ error:
 
 		if (LastVersion)
 				free(LastVersion);
+
+		if (Checksums)
+				free(Checksums);
 
 		Error("[ERROR]: An error was encountered while running Install().", ERR_STANDARD | ERR_NOEXIT);
 
