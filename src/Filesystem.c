@@ -1,26 +1,24 @@
 #include <Shared.h>
 
-#include <errno.h>
+/* TODO: Implement a non-linux dependent solution for other platforms. */
+#include <sys/sendfile.h>
 #include <sys/stat.h>
+
+#include <errno.h>
 #include <stdarg.h>
 #include <string.h>
 
-/* TODO: Implement a non-linux dependent solution for other platforms. */
-#include <sys/sendfile.h>
+#include <unistd.h>
+#include <fcntl.h>
 
-/* Used by CopyFile. */
-char *CopyRoot;
+char *NewCopyPath;
+uint32_t NewCopyPathRootPos, OldCopyPathRootPos;
 
 /* Used internally by nftw.
 	* @return 0 on success and -1 on failure.*/
-int32_t DeleteFile(const char *pathname, const struct stat *sbuf, int32_t type, struct FTW *ftwb) {
-		unused(sbuf);
-		unused(type);
-		unused(ftwb);
-
-		if (remove(pathname) < 0) {
-				Error("DeleteFile() call failed.", ERR_STANDARD | ERR_NOEXIT);
-				Error((char*)pathname, ERR_STANDARD | ERR_NOEXIT);
+int32_t DeleteFile(const char *FilePath, const struct stat*, int32_t, struct FTW *) {
+		if (unlikely(remove(FilePath) < 0)) {
+				Error("DeleteFile() call failed on %s.", ERR_STANDARD | ERR_NOEXIT, FilePath);
 				return -1;
 		}
 
@@ -29,19 +27,92 @@ int32_t DeleteFile(const char *pathname, const struct stat *sbuf, int32_t type, 
 
 /* Used internally by nftw.
 	* @return 0 on success and -1 on failure. */
-int32_t CopyEntry(const char *PathName, const struct stat *_sbuf, int32_t Type, struct FTW *_ftwb) {
-		unused(_sbuf);
-		unused(_ftwb);
+static int32_t CopyEntry(const char *FilePath, const struct stat *StatBuffer, int32_t FileType, struct FTW*) {
+		if (FileType == FTW_F) {
+				int InputDescriptor, OutputDescriptor;
+				off_t Copied = 0;
 
-		if (Type == FTW_F) {
+				InputDescriptor = open(FilePath, O_RDONLY, 0640);
+
+				if (unlikely(InputDescriptor == -1)) {
+						Error("[ERROR]: Unable to open InputDescritor %s.", ERR_STANDARD | ERR_NOEXIT, FilePath);
+						return -1;
+				}
+
+				memcpy(NewCopyPath + NewCopyPathRootPos, FilePath + OldCopyPathRootPos, strlen(FilePath + OldCopyPathRootPos) + 1);
+				OutputDescriptor = open(NewCopyPath, O_RDWR | O_CREAT, 0640);
+
+				if (unlikely(OutputDescriptor == -1)) {
+						Error("[ERROR]: Unable to open OutputDescriptor %s.", ERR_STANDARD | ERR_NOEXIT, NewCopyPath);
+						close(InputDescriptor);
+						return -1;
+				}
+
+				/* https://stackoverflow.com/questions/2180079/how-can-i-copy-a-file-on-unix-using-c */
+				do {
+						ssize_t Written = sendfile(OutputDescriptor, InputDescriptor, &Copied, SSIZE_MAX);
+
+						if (unlikely(Written == -1)) {
+								Error("[ERROR]: sendfile() failure.", ERR_STANDARD | ERR_NOEXIT);
+								close(InputDescriptor);
+								close(OutputDescriptor);
+								return -1;
+						}
+
+						Copied += Written;
+				} while (Copied < StatBuffer->st_size);
+
+				close(InputDescriptor);
+				close(OutputDescriptor);
 				return 0;
-		} else if (Type == FTW_D) {
-				mkdir(PathName, 0755);
+		} else if (FileType == FTW_D) {
+				uint32_t Len = strlen(FilePath + OldCopyPathRootPos);
+				memcpy(NewCopyPath + NewCopyPathRootPos, FilePath + OldCopyPathRootPos, Len);
+				NewCopyPath[NewCopyPathRootPos + Len] = '/';
+				NewCopyPath[NewCopyPathRootPos + Len + 1] = 0;
+
+				if (unlikely(mkdir(FilePath, 0755) && errno != EEXIST)) {
+						Error("[ERROR]: mkdir failure on %s.", ERR_STANDARD | ERR_NOEXIT, FilePath);
+						return -1;
+				}
+
 				return 0;
 		} else {
-				Error("[ERROR] Unhandled file type detected during CopyFile call.", ERR_STANDARD | ERR_NOEXIT);
-				return 1;
+				Error("[ERROR]: %s is not an entry we can copy.", ERR_STANDARD | ERR_NOEXIT);
+				return -1;
 		}
+
+		return 0;
+}
+
+/* CopyRelativeDir copies one relative folder to another.
+	* Basically, the char* arguments are appended to `$HOME/.robloxstudio/` for the initial paths.
+	* @return 0 on success and -1 on failure. */
+int8_t CopyRelativeDir(char *Old, char *New) {
+		char *OldCopyPath = GetVersionPath(Old, 256);
+		NewCopyPath = GetVersionPath(New, 256);
+
+		NewCopyPathRootPos = strlen(NewCopyPath);
+		OldCopyPathRootPos = strlen(OldCopyPath);
+
+		NewCopyPath[NewCopyPathRootPos] = '/';
+
+		if (unlikely(mkdir(NewCopyPath, 0755) && errno != EEXIST)) {
+				Error("[ERROR]: Unable to make dir %s.", ERR_STANDARD | ERR_NOEXIT, NewCopyPath);
+				goto error;
+		}
+
+		if (unlikely(nftw(OldCopyPath, CopyEntry, 10, FTW_MOUNT | FTW_PHYS)))
+				goto error;
+
+		free(OldCopyPath);
+		free(NewCopyPath);
+		return 0;
+
+error:
+		free(OldCopyPath);
+		free(NewCopyPath);
+		return -1;
 }
 
 /* ReadFileToBuffer reads the whole provided file to a dynamically allocated buffer.
@@ -91,19 +162,19 @@ char *GetVersionPath(char *Version, uint32_t ExtraBytes) {
 }
 
 /* BuildDirectoryTree() builds a path of directories.
+	* Use SkipBytes if you want to control where the search for the delimiter begins.
 	* @return 0 on success and -1 on failure. */
-int8_t BuildDirectoryTree(char *Path) {
+int8_t BuildDirectoryTree(char *Path, uint32_t SkipBytes) {
 		/* https://stackoverflow.com/questions/7430248/creating-a-new-directory-in-c
 			* Basically, get a pointer to the next separator, replace it with a null byte, create the directory,
 			* then revert the string modification and repeat. Pretty sure this is not thread safe but we don't care. */
-		char *Separated = strchr(Path + 1, '/');
+		char *Separated = strchr(Path + 1 + SkipBytes, '/');
 
 		while (Separated != NULL) {
 				*Separated = '\0';
 
 				if (unlikely(mkdir(Path, 0755) && errno != EEXIST)) {
-						Error("[FATAL]: Mkdir failed during BuildDirectoryTree call.", ERR_STANDARD | ERR_NOEXIT);
-						Error(Path, ERR_STANDARD | ERR_NOEXIT);
+						Error("[FATAL]: Mkdir failed during BuildDirectoryTree for %s call.", ERR_STANDARD | ERR_NOEXIT, Path);
 						return -1;
 				}
 
