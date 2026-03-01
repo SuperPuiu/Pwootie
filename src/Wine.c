@@ -31,7 +31,7 @@ static int32_t Search(const char *PathName, const struct stat *StatBuffer, int32
 char *GetPrefixPath(uint32_t ExtraBytes) {
 		char *HomeEnv = getenv("HOME");
 
-		if (!HomeEnv)
+		if (unlikely(!HomeEnv))
 				Error("No HOME environment variable found. Aborting.", ERR_STANDARD);
 
 		uint32_t HomeLength = strlen(HomeEnv), InstallDirLength = strlen(INSTALL_DIR);
@@ -91,7 +91,7 @@ int8_t AddNewUser(char *restrict UserId, char *restrict Name, char *restrict URL
 		char *StrtolEndChar = NULL;
 		strtol(UserId, &StrtolEndChar, 10);
 
-		if (errno != 0 || UserId == NULL || *StrtolEndChar) {
+		if (unlikely(errno != 0 || UserId == NULL || *StrtolEndChar)) {
 				Error("[ERROR]: UserId is not a valid number.", ERR_STANDARD | ERR_NOEXIT);
 				return -1;
 		}
@@ -173,6 +173,8 @@ error:
 		return -1;
 }
 
+/* GetDefaultWineBinary retrives the `wine` binary from within the PATH environment variable.
+	* @return NULL when no binary can be found and return the path of the binary if found. */
 char *GetDefaultWineBinary(uint32_t ExtraBytes) {
 		char *PathEnv = getenv("PATH");
 		char *WineBinPath = NULL;
@@ -260,7 +262,7 @@ char *GetStudioSetting(char *Name) {
 
 		KeyStart += NameLen;
 
-		if (*KeyStart != '"') {
+		if (unlikely(*KeyStart != '"')) {
 				Error("[ERROR]: KeyStart appears to not point to the end of a string.", ERR_STANDARD | ERR_NOEXIT);
 				goto error;
 		}
@@ -351,7 +353,7 @@ int8_t SetupWine(uint8_t CheckExistence) {
 		Path[HomeLength + InstallDirLength + WineDirLength + 3] = '\0';
 
 		/* First create the directory. */
-		if (mkdir(Path, 0755) && errno != EEXIST) {
+		if (unlikely(mkdir(Path, 0755) && errno != EEXIST)) {
 				Error("[ERROR]: Failed to create the proton installation folder.", ERR_STANDARD | ERR_NOEXIT);
 				goto error;
 		} else if (errno == EEXIST && CheckExistence == 1) {
@@ -494,7 +496,7 @@ int8_t SetupPrefix() {
 		/* Is all this string building needed? */
 		Location = GetPrefixPath(0);
 
-		if (mkdir(Location, 0755) && errno != EEXIST) {
+		if (unlikely(mkdir(Location, 0755) && errno != EEXIST)) {
 				Error("[FATAL]: Unable to create folder during SetupPrefix call.", ERR_STANDARD | ERR_NOEXIT);
 				Error(Location, ERR_STANDARD | ERR_NOEXIT);
 				goto error;
@@ -538,7 +540,7 @@ void RunWineCfg() {
 		if (unlikely(!WineExec)) {
 				WineExec = GetDefaultWineBinary(0);
 
-				if (!WineExec)
+				if (unlikely(!WineExec))
 						return;
 
 				PwootieWriteEntry("wine_binary", WineExec);
@@ -547,7 +549,7 @@ void RunWineCfg() {
 		WineExecLen = strlen(WineExec);
 		Command = malloc(sizeof(char) * (WineExecLen + 1 + strlen("cfg")));
 
-		if (!Command)
+		if (unlikely(!Command))
 				Error("[FATAL]: Unable to allocate Command during RunWineCfg call.", ERR_MEMORY);
 
 		memcpy(Command, WineExec, WineExecLen);
