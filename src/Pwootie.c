@@ -145,6 +145,8 @@ void PwootieExit() {
 /* PwootieWriteEntry() writes an entry to the buffer.
 	* @return nothing */
 void PwootieWriteEntry(char *restrict Entry, char *restrict Data) {
+		uint8_t Reallocated = 0;
+
 		uint32_t EntrySize = strlen(Entry), DataSize = strlen(Data);
 		int32_t EntryIndex = PwootieGetEntry(Entry);
 
@@ -159,11 +161,15 @@ void PwootieWriteEntry(char *restrict Entry, char *restrict Data) {
 		} else if (BufferSize < EntrySize + DataSize + 2) {
 				uint16_t Extra = BufferSize - (EntrySize + DataSize + 2);
 				PwootieBuffer = realloc(PwootieBuffer, sizeof(char) * (BufferSize + Extra));
+
 				BufferSize += Extra;
+				Reallocated = 1;
 
 				if (unlikely(!PwootieBuffer))
 						Error("[FATAL]: Unable to realloc the PwootieBuffer during PwootieWriteEntry.", ERR_MEMORY);
-		} else {
+		}
+
+		if (EntryIndex > -1) {
 				/* Move anything after the entry forward, to make space. */
 				uint32_t Newline = EntryIndex;
 
@@ -172,18 +178,26 @@ void PwootieWriteEntry(char *restrict Entry, char *restrict Data) {
 						Newline++;
 
 				if (Newline == BufferSize) {
-						Error("[WARNING]: Missing ending newline for entry %s.\n", ERR_STANDARD | ERR_WARNING, Entry);
+						Error("[WARNING]: Missing ending newline for entry %s.", ERR_STANDARD | ERR_WARNING, Entry);
 				} else {
 						uint32_t CurrentSize = (Newline - EntryIndex) + 1, RequiredSize = EntrySize + DataSize + 2;
 						int64_t Result = (int64_t)RequiredSize - (int64_t)CurrentSize;
 
 						if (Result != 0) {
+								// printf("%u %u %li\n", CurrentSize, RequiredSize, Result);
+								if (Result > 0 && !Reallocated) {
+										PwootieBuffer = realloc(PwootieBuffer, sizeof(char) * (BufferSize + Result));
+
+										if (unlikely(!PwootieBuffer))
+												Error("[FATAL]: Unable to realloc PwootieBuffer.", ERR_MEMORY);
+								}
+
 								memmove(
 										PwootieBuffer + (Newline + Result),
 										PwootieBuffer + Newline,
 										BufferSize - Newline);
 
-								if (Result < 0)
+								if (Result != 0)
 										BufferSize += Result;
 						}
 				}
