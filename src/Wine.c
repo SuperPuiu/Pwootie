@@ -7,9 +7,7 @@
 char NFTW_BinPath[PATH_MAX] = {0};
 
 /* Used internally by nftw. */
-static int32_t Search(const char *PathName, const struct stat *StatBuffer, int32_t Type, struct FTW *ftwb) {
-		unused(ftwb);
-
+static int32_t Search(const char *PathName, const struct stat *StatBuffer, int32_t Type, struct FTW*) {
 		uint32_t PathLen = strlen(PathName);
 		uint32_t SrcIndex = PathLen;
 
