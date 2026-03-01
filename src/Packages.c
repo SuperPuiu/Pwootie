@@ -123,7 +123,7 @@ int8_t InstallPackages(FetchStruct *Fetched, char *restrict Version, char *restr
 				memcpy(InstallDir + HomeLength + InstallDirLength + LengthVersion + 3, Instructions[Index], InstructionLength + 1);
 
 				/* Build the directory tree. */
-				BuildDirectoryTree(InstallDir);
+				BuildDirectoryTree(InstallDir, 0);
 		}
 
 		/* Why can't just AppSettings.xml be packaged in a zip file? I don't know! */
@@ -191,7 +191,7 @@ int8_t InstallPackages(FetchStruct *Fetched, char *restrict Version, char *restr
 						if (Directory) {
 								memcpy(InstallDir + HomeLength + InstallDirLength + LengthVersion + InstructionLength + 2, Name, NameLength + 1);
 
-								BuildDirectoryTree(InstallDir);
+								BuildDirectoryTree(InstallDir, 0);
 								continue;
 						}
 
