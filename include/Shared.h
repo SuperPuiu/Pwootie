@@ -92,7 +92,8 @@ int8_t Install(char *Version, uint8_t CheckVersion);
 /* Filesystem.c */
 uint64_t QueryDiskSpace();
 int32_t  DeleteFile(const char *pathname, const struct stat *sbuf, int32_t type, struct FTW *ftwb);
-int8_t   BuildDirectoryTree(char *Path);
+int8_t   BuildDirectoryTree(char *Path, uint32_t SkipBytes);
+int8_t   CopyRelativeDir(char *Old, char *New);
 void     ConvertPath(char *Path);
 char     *BuildString(uint8_t Elements, ...);
 char 				*ReadFileToBuffer(FILE *Ptr, uint32_t *PtrSize);
