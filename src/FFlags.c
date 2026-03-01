@@ -167,7 +167,7 @@ int8_t CreateFFlags(char *restrict Version, char *restrict OldVersion) {
 		char SavedChar = DestinationPath[DIRECTORY_LEN];
 		DestinationPath[DIRECTORY_LEN] = '\0';
 
-		if (BuildDirectoryTree(DestinationPath) != 0) {
+		if (unlikely(BuildDirectoryTree(DestinationPath, 0) != 0)) {
 				Error("[ERROR]: BuildDirectoryPath failed during CreateFFlags call.", ERR_STANDARD | ERR_NOEXIT);
 				goto error;
 		}
