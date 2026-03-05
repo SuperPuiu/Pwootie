@@ -59,6 +59,19 @@ int8_t Install(char *Version, uint8_t CheckVersion) {
 								return 0;
 						}
 				}
+
+				/* If we get here then it means that we have to install a new update.
+					* Let us create a copy of the old version folder where we'll apply the new update.
+					* This should be done only if we have a list of Checksums. */
+				if (Checksums && LastVersion) {
+						printf(" Copying version %s to %s..\n", LastVersion, Version);
+						if (unlikely(CopyRelativeDir(LastVersion, Version) == -1)) {
+								free(LastVersion);
+								return -1;
+						}
+
+						free(LastVersion);
+				}
 		}
 
 		/* First step: get a list of packages we have to download, along with their checksum, real size and compressed size.
@@ -112,7 +125,9 @@ int8_t Install(char *Version, uint8_t CheckVersion) {
 		/* Free up the used memory. */
 		free(Fetched->PackageList);
 		free(Fetched);
-		free(Checksums);
+
+		if (Checksums)
+				free(Checksums);
 
 		return 0;
 
