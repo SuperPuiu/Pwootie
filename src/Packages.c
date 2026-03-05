@@ -141,7 +141,12 @@ int8_t InstallPackages(FetchStruct *Fetched, char *restrict Version, char *restr
 
 		/* Decompress all zips downloaded during DownloadPackages call. */
 		for (uint8_t i = 0; i < Fetched->TotalPackages; i++) {
-				uint32_t        ZipLength = strlen(Fetched->PackageList[i].Name), InstructionLength = strlen(Instructions[i]);
+				Package         CurPackage = Fetched->PackageList[i];
+
+				if (!CurPackage.Download)
+						continue;
+
+				uint32_t        ZipLength = strlen(CurPackage.Name), InstructionLength = strlen(Instructions[i]);
 				int32_t         ErrorCode = 0;
 				zip_t           *ZipPointer;
 				zip_error_t     ZipError;
@@ -157,7 +162,7 @@ int8_t InstallPackages(FetchStruct *Fetched, char *restrict Version, char *restr
 
 				/* Construct required paths. Official path becomes the path to which the zip file is located. */
 				memcpy(InstallDir + HomeLength + InstallDirLength + LengthVersion + 3, Instructions[i], InstructionLength + 1);
-				memcpy(Official + TempDirLength, Fetched->PackageList[i].Name, ZipLength);
+				memcpy(Official + TempDirLength, CurPackage.Name, ZipLength);
 				Official[TempDirLength + ZipLength] = '\0';
 
 				ZipPointer = zip_open(Official, 0, &ErrorCode);
@@ -228,7 +233,7 @@ int8_t InstallPackages(FetchStruct *Fetched, char *restrict Version, char *restr
 
 				ZipStat = NULL;
 
-				printf("[INFO]: Installing package %i out of %i.\r", i + 1, Fetched->TotalPackages);
+				printf(" Installing package %i out of %i.\r", i + 1, Fetched->TotalPackages);
 				fflush(stdout);
 		}
 
@@ -240,11 +245,10 @@ int8_t InstallPackages(FetchStruct *Fetched, char *restrict Version, char *restr
 		free(Instructions);
 
 		/* Remove temporary directory. We need to reset the path buffer. */
-		Official[InstallerLength + TempDirLength] = '\0';
+		Official[TempDirLength] = '\0';
 
 		if (unlikely(nftw(Official, DeleteFile, 10, FTW_DEPTH | FTW_MOUNT | FTW_PHYS) < 0)) {
-				Error("[ERROR]: Failed to remove the Pwootie temporary directory.", ERR_STANDARD | ERR_NOEXIT);
-				Error(Official, ERR_STANDARD | ERR_NOEXIT);
+				Error("[ERROR]: Failed to remove the Pwootie temporary directory (%s).", ERR_STANDARD | ERR_NOEXIT, Official);
 		}
 
 		/* Free additional variables. */
@@ -275,21 +279,24 @@ error:
 int8_t DownloadPackages(FetchStruct *Fetched, char *restrict Version, char *restrict Checksums) {
 		uint32_t LengthURL = strlen(CDN_URL), LengthVersion = strlen(Version), RootPartLength = strlen(TEMP_PWOOTIE_FOLDER);
 		uint8_t Increment = 0;
+		uint8_t PackagesToDownload = 0;
 
 		char *FullURL = malloc((LengthURL + LengthVersion + Fetched->LongestName + 2) * sizeof(char));
 		char *ZipFilePath = malloc((RootPartLength + Fetched->LongestName + 2) * sizeof(char));
 
-		char **BufferPointers = malloc(32 * sizeof(char*));
-		char **LinkPointers = malloc(32 * sizeof(char*));
+		char *BufferPointers[32];
+		char *LinkPointers[32];
+		char *RequiredChecksums[32];
+
 		int FileDescriptors[32];
 		int64_t ZipSizes[32];
 
 		unused(Checksums);
 
-		if (unlikely(!BufferPointers))
+		/*if (unlikely(!BufferPointers))
 				Error("[FATAL]: Failed to allocate BufferPointers during DownloadPackages call.", ERR_MEMORY);
 		else if (unlikely(!LinkPointers))
-				Error("[FATAL]: Failed to allocate LinkPointers during DownloadPackages call.", ERR_MEMORY);
+				Error("[FATAL]: Failed to allocate LinkPointers during DownloadPackages call.", ERR_MEMORY);*/
 
 		if (unlikely(!FullURL))
 				Error("[FATAL]: Failed to allocate memory for FullURL during DownloadPackages call.", ERR_MEMORY);
@@ -309,41 +316,55 @@ int8_t DownloadPackages(FetchStruct *Fetched, char *restrict Version, char *rest
 				goto error;
 		}
 
-		printf("Downloading packages..\n");
+		printf(" Downloading packages..\n");
 
 		/* A for loop is used here just to keep Index at a local scope. A while loop would've worked too. */
 		for (uint32_t Index = 0; Index < Fetched->TotalPackages;) {
 				CURLMsg *MultiMsg;
-
 				int32_t StillRunning = 1, MessagesLeft = 0;
+
 				Increment = Fetched->TotalPackages - Index >= 32 ? 32 : Fetched->TotalPackages % 32;
+				PackagesToDownload = 0;
 
 				for (uint32_t LinkIndex = Index; LinkIndex < Increment + Index; LinkIndex++) {
-						uint32_t  PackageNameLength = strlen(Fetched->PackageList[LinkIndex].Name);
+						Package CurPackage = Fetched->PackageList[LinkIndex];
+
+						if (!CurPackage.Download)
+								continue;
+
+						uint32_t  PackageNameLength = strlen(CurPackage.Name);
 
 						/* The extra byte is obviously the dash. Well I suppose it's obvious. */
-						memcpy(FullURL + LengthURL + LengthVersion + 1, Fetched->PackageList[LinkIndex].Name, PackageNameLength);
+						memcpy(FullURL + LengthURL + LengthVersion + 1, CurPackage.Name, PackageNameLength);
 						FullURL[LengthURL + LengthVersion + PackageNameLength + 1] = '\0';
 
-						memcpy(ZipFilePath + RootPartLength, Fetched->PackageList[LinkIndex].Name, PackageNameLength);
+						memcpy(ZipFilePath + RootPartLength, CurPackage.Name, PackageNameLength);
 						ZipFilePath[RootPartLength + PackageNameLength] = '\0';
 
-						LinkPointers[LinkIndex - Index] = strdup(FullURL);
-						BufferPointers[LinkIndex - Index] = malloc(Fetched->PackageList[LinkIndex].ZipSize);
-						FileDescriptors[LinkIndex - Index] = open(ZipFilePath, O_CREAT | O_RDWR | O_DIRECT, 0640);
-						ZipSizes[LinkIndex - Index] = Fetched->PackageList[LinkIndex].ZipSize;
+						LinkPointers[PackagesToDownload] = strdup(FullURL);
+						BufferPointers[PackagesToDownload] = malloc(CurPackage.ZipSize);
+						FileDescriptors[PackagesToDownload] = open(ZipFilePath, O_CREAT | O_RDWR | O_DIRECT, 0640);
+						ZipSizes[PackagesToDownload] = CurPackage.ZipSize;
+						RequiredChecksums[PackagesToDownload] = Fetched->PackageList[LinkIndex].Checksum;
 
-						if (unlikely(!BufferPointers[LinkIndex - Index])) {
+						if (unlikely(!BufferPointers[PackagesToDownload])) {
 								Error("[ERROR]: Unable to allocate one data buffer.", ERR_MEMORY);
-						} else if (FileDescriptors[LinkIndex - Index] == -1) {
+						} else if (FileDescriptors[PackagesToDownload] == -1) {
 								Error("[ERROR]: Unable to open file %s.", ERR_STANDARD, ZipFilePath);
-						} else if (unlikely(!LinkPointers[LinkIndex - Index])) {
+								goto error;
+						} else if (unlikely(!LinkPointers[PackagesToDownload])) {
 								Error("[ERROR]: Unable to allocate link pointer during DownloadPackages call.", ERR_STANDARD | ERR_NOEXIT);
 								goto error;
 						}
+
+						PackagesToDownload += 1;
 				}
 
-				if (unlikely(CurlMultiSetup(BufferPointers, LinkPointers, Increment) != 0)) {
+				/* We got no packages to download so may as well leave the loop early. */
+				if (PackagesToDownload == 0)
+						break;
+
+				if (unlikely(CurlMultiSetup(BufferPointers, LinkPointers, PackagesToDownload) != 0)) {
 						Error("[ERROR]: CurlMultiSetup fail.", ERR_STANDARD | ERR_NOEXIT);
 						goto error;
 				}
@@ -351,7 +372,7 @@ int8_t DownloadPackages(FetchStruct *Fetched, char *restrict Version, char *rest
 				/* https://curl.se/libcurl/c/multi-app.html */
 				do {
 						CURLMcode MultiCode = curl_multi_perform(CurlMulti, &StillRunning);
-						printf("Current running curl handles: %i\r", StillRunning);
+						printf("  Current running curl handles: %02i\r", StillRunning);
 						fflush(stdout);
 
 						if (StillRunning)
@@ -375,14 +396,14 @@ int8_t DownloadPackages(FetchStruct *Fetched, char *restrict Version, char *rest
 						}
 				}
 
-				for (uint32_t LinkIndex = 0; LinkIndex < Increment; LinkIndex++) {
+				for (uint32_t LinkIndex = 0; LinkIndex < PackagesToDownload; LinkIndex++) {
 						uint8_t   Checksum[16];
 						char      ChecksumBuf[33];
 
 						md5String(BufferPointers[LinkIndex], Checksum, ZipSizes[LinkIndex]);
 						ChecksumToString(Checksum, ChecksumBuf);
 
-						if (unlikely(memcmp(ChecksumBuf, Fetched->PackageList[Index + LinkIndex].Checksum, 32) != 0)) {
+						if (unlikely(memcmp(ChecksumBuf, RequiredChecksums[LinkIndex], 32) != 0)) {
 								Error("[ERROR]: One or more packages' checksums are not matching.", ERR_STANDARD | ERR_NOEXIT);
 								goto error;
 						}
@@ -394,32 +415,26 @@ int8_t DownloadPackages(FetchStruct *Fetched, char *restrict Version, char *rest
 						free(LinkPointers[LinkIndex]);
 				}
 
-				ResetMultiCurl(Increment);
+				ResetMultiCurl(PackagesToDownload);
 				Index += Increment;
+
+				printf("  Batch downloaded!\n");
 		}
 
-		printf("Download completed!\n");
+		printf(" Download completed!\n");
 
 		free(ZipFilePath);
 		free(FullURL);
-
-		free(BufferPointers);
-		free(LinkPointers);
 
 		return 0;
 error:
 		free(ZipFilePath);
 		free(FullURL);
 
-		if (LinkPointers) {
-				for (uint8_t SrcIndex = 0; SrcIndex < Increment; SrcIndex++) {
-						free(LinkPointers[SrcIndex]);
-						free(BufferPointers[SrcIndex]);
-						close(FileDescriptors[SrcIndex]);
-				}
-
-				free(LinkPointers);
-				free(BufferPointers);
+		for (uint8_t SrcIndex = 0; SrcIndex < PackagesToDownload; SrcIndex++) {
+				free(LinkPointers[SrcIndex]);
+				free(BufferPointers[SrcIndex]);
+				close(FileDescriptors[SrcIndex]);
 		}
 
 		return -1;
@@ -512,6 +527,9 @@ FetchStruct* FetchPackages(char *restrict Version, char *restrict Checksums) {
 								continue;
 						}
 
+#ifndef NDEBUG
+						printf("[DEBUG]: Skipping download for %s\n", PackagesData[i].Name);
+#endif
 						PackagesData[i].Download = 0;
 				}
 		}
