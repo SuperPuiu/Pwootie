@@ -14,7 +14,7 @@ OUTPUT_TEST = $(BUILD_DIR)/PwootieTest
 ifeq ($(MAKECMDGOALS), test)
 	CFLAGS += -g3 -ggdb3
 else
-	CFLAGS += -flto -O3
+	CFLAGS += -flto -O3 -DNDEBUG
 endif
 
 ifneq (, $(shell which gcc))
