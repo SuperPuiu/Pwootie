@@ -11,8 +11,8 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-char *NewCopyPath;
-uint32_t NewCopyPathRootPos, OldCopyPathRootPos;
+static char *NewCopyPath;
+static uint32_t NewCopyPathRootPos, OldCopyPathRootPos;
 
 /* Used internally by nftw.
 	* @return 0 on success and -1 on failure.*/
@@ -71,8 +71,8 @@ static int32_t CopyEntry(const char *FilePath, const struct stat *StatBuffer, in
 				NewCopyPath[NewCopyPathRootPos + Len] = '/';
 				NewCopyPath[NewCopyPathRootPos + Len + 1] = 0;
 
-				if (unlikely(mkdir(FilePath, 0755) && errno != EEXIST)) {
-						Error("[ERROR]: mkdir failure on %s.", ERR_STANDARD | ERR_NOEXIT, FilePath);
+				if (unlikely(mkdir(NewCopyPath, 0755) && errno != EEXIST)) {
+						Error("[ERROR]: mkdir failure on %s.", ERR_STANDARD | ERR_NOEXIT, NewCopyPath);
 						return -1;
 				}
 
@@ -95,10 +95,8 @@ int8_t CopyRelativeDir(char *Old, char *New) {
 		NewCopyPathRootPos = strlen(NewCopyPath);
 		OldCopyPathRootPos = strlen(OldCopyPath);
 
-		NewCopyPath[NewCopyPathRootPos] = '/';
-
 		if (unlikely(mkdir(NewCopyPath, 0755) && errno != EEXIST)) {
-				Error("[ERROR]: Unable to make dir %s.", ERR_STANDARD | ERR_NOEXIT, NewCopyPath);
+				Error("[ERROR]: Unable to make directory %s.", ERR_STANDARD | ERR_NOEXIT, NewCopyPath);
 				goto error;
 		}
 
