@@ -30,7 +30,7 @@ char *GetPrefixPath(uint32_t ExtraBytes) {
 		char *HomeEnv = getenv("HOME");
 
 		if (unlikely(!HomeEnv))
-				Error("No HOME environment variable found. Aborting.", ERR_STANDARD);
+				Error("[ERROR]: No HOME environment variable found. Aborting.", ERR_STANDARD);
 
 		uint32_t HomeLength = strlen(HomeEnv), InstallDirLength = strlen(INSTALL_DIR);
 		uint32_t PrefixLength = strlen("prefix");
@@ -361,7 +361,7 @@ int8_t SetupWine(uint8_t CheckExistence) {
 				return 0;
 		}
 
-		printf("Downloading %s.\n", DownloadLink);
+		printf(" Downloading %s.\n", DownloadLink);
 		Response = CurlDownloadNoFile(DownloadLink, Path);
 
 		if (unlikely(Response->Response != CURLE_OK || Response->FileName[0] == '\0')) {
@@ -394,7 +394,7 @@ int8_t SetupWine(uint8_t CheckExistence) {
 		Response->FileStream = NULL;
 
 		/* im not going to memcpy this. */
-		printf("Unzipping new version..\n");
+		printf(" Unzipping new version..\n");
 		sprintf(Command, "tar -xf %s -C %s > /dev/null 2>&1", Path, PathCopy);
 
 		if (unlikely(system(Command) != 0)) {
@@ -409,7 +409,7 @@ int8_t SetupWine(uint8_t CheckExistence) {
 
 		/* Write wine_binary entry. If wine64 binary can't be found, then throw an error.
 			* strlen(".tar.xz") should get optimized by the compiler hopefully. */
-		printf("Fetching new wine path.\n");
+		printf(" Fetching new wine path.\n");
 		Path[(HomeLength + InstallDirLength + WineNameLength + WineDirLength + 3) - strlen(".tar.xz")] = 0;
 		nftw(Path, Search, 10, FTW_DEPTH | FTW_MOUNT | FTW_PHYS);
 
@@ -418,7 +418,7 @@ int8_t SetupWine(uint8_t CheckExistence) {
 				goto error;
 		}
 
-		printf("New wine_binary path: %s\n", NFTW_BinPath);
+		printf(" New wine_binary path: %s\n", NFTW_BinPath);
 		PwootieWriteEntry("wine_binary", NFTW_BinPath);
 
 		/* Cleanup. */
@@ -506,11 +506,11 @@ int8_t SetupPrefix() {
 		setenv("WINEPREFIX", Location, 1);
 
 		/* Install required dlls for studio to launch. Check status values. */
-		printf("Installing d3dx11_43..\n");
+		printf(" Installing d3dx11_43..\n");
 		if (unlikely(system(D3DX11_43) != 0))
 				Error("[FATAL]: winetricks failed to install d3dx11_43. Please try to manually install the component.", ERR_STANDARD | ERR_NOEXIT);
 
-		printf("Installing dxvk..\n");
+		printf(" Installing dxvk..\n");
 		if (unlikely(system(DXVK) != 0))
 				Error("[FATAL]: winetricks failed to install dxvk. Please try to manually install the component.", ERR_STANDARD | ERR_NOEXIT);
 
