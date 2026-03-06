@@ -147,15 +147,16 @@ int8_t CreateFFlags(char *restrict Version, char *restrict OldVersion) {
 				if (access(FFlagsPath, F_OK) == -1) {
 						UserData = getpwuid(getuid());
 
-						if (UserData == NULL)
+						if (unlikely(UserData == NULL))
 								goto error;
 
 						free(FFlagsPath);
 						sprintf(FormattedString, DEFAULT_SETTINGS_PATH, UserData->pw_name);
 						FFlagsPath = BuildString(4, getenv("HOME"), "/", INSTALL_DIR, FormattedString);
 				}
-		} else
+		} else {
 				FFlagsPath = BuildString(7, getenv("HOME"), "/", INSTALL_DIR, "/", OldVersion, "/", VERSION_SETTINGS_PATH);
+		}
 
 		DestinationPath = BuildString(7, getenv("HOME"), "/", INSTALL_DIR, "/", Version, "/", VERSION_SETTINGS_PATH);
 		char *Buffer = NULL;
@@ -188,7 +189,7 @@ int8_t CreateFFlags(char *restrict Version, char *restrict OldVersion) {
 						FFlagsFile = fopen(FFlagsPath, "r");
 
 						if (unlikely(!FFlagsFile)) {
-								Error("[ERROR]: Unable to open the default fastflags file.\n", ERR_STANDARD | ERR_NOEXIT);
+								Error("[ERROR]: Unable to open the default fastflags file.", ERR_STANDARD | ERR_NOEXIT);
 								goto error;
 						}
 
