@@ -44,9 +44,14 @@ typedef struct ResponseStruct {
 		char *FileName;
 
 		uint32_t FileNameSize;
-		uint8_t  FreeName:1;
 		CURLcode Response;
+		uint8_t  FreeName:1;
 } ResponseStruct;
+
+typedef struct ZipMemoryStruct {
+		char *Data;
+		uint64_t Size;
+} ZipMemoryStruct;
 
 typedef struct EnvInfoStruct {
 		char *PwootieVersion, *Renderer;
@@ -69,8 +74,8 @@ typedef struct Package {
 
 		uint8_t Download:1;
 
-		int64_t Size;
-		int64_t ZipSize;
+		uint64_t Size;
+		uint64_t ZipSize;
 } Package;
 
 typedef struct FetchPackagesStruct {
