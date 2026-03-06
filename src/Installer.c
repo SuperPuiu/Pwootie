@@ -3,10 +3,10 @@
 #include <dirent.h>
 
 /* Functions found in Packages.c */
-int8_t      DownloadPackages(FetchStruct *Fetched, char *restrict Version, char *restrict Checksums);
-int8_t      InstallPackages(FetchStruct *Fetched, char *restrict Version, char *restrict Checksums);
+int8_t      DownloadPackages(FetchStruct *Fetched, ZipMemoryStruct *ZipData, char *Version);
+int8_t      InstallPackages(FetchStruct *Fetched, ZipMemoryStruct *ZipData, char *Version);
 char        *FormatChecksums(FetchStruct *Fetched);
-FetchStruct *FetchPackages(char *restrict Version, char *restrict Checksums);
+FetchStruct *FetchPackages(ZipMemoryStruct **ZipData, char *restrict Version, char *restrict Checksums);
 
 void DeleteVersion(char *Version) {
 		char *VersionPath = GetVersionPath(Version, 0);
@@ -38,12 +38,14 @@ int8_t Install(char *Version, uint8_t CheckVersion) {
 
 		/* Before starting, let's check if we already have the right version installed.
 			* This process may be skipped by setting CheckVersion flag to 0.*/
-		int8_t Status = 0;
+		int8_t          Status = 0;
 
-		FetchStruct *Fetched = NULL;
-		char *LastVersion = NULL;
-		char *Checksums = NULL;
+		FetchStruct     *Fetched = NULL;
+		ZipMemoryStruct *ZipData = NULL;
+		char            *LastVersion = NULL;
+		char            *Checksums = NULL;
 
+		/* We should check some things before installing a studio version. */
 		if (PwootieFile) {
 				Checksums = PwootieReadEntry("checksums", 0);
 				LastVersion = PwootieReadEntry("version", 0);
@@ -63,30 +65,28 @@ int8_t Install(char *Version, uint8_t CheckVersion) {
 				/* If we get here then it means that we have to install a new update.
 					* Let us create a copy of the old version folder where we'll apply the new update.
 					* This should be done only if we have a list of Checksums. */
-				if (Checksums && LastVersion) {
+				if (Checksums && LastVersion && CheckVersion) {
 						printf(" Copying version %s to %s..\n", LastVersion, Version);
 						if (unlikely(CopyRelativeDir(LastVersion, Version) == -1)) {
 								free(LastVersion);
 								return -1;
 						}
-
-						free(LastVersion);
 				}
 		}
 
 		/* First step: get a list of packages we have to download, along with their checksum, real size and compressed size.
 			* FetchStruct also contains some additional information helpful to other functions. */
-		Fetched = FetchPackages(Version, Checksums);
+		Fetched = FetchPackages(&ZipData, Version, Checksums);
 		if (unlikely(!Fetched))
 				goto error;
 
 		/* Second step: download the packages using the data we got above. */
-		Status = DownloadPackages(Fetched, Version, Checksums);
+		Status = DownloadPackages(Fetched, ZipData, Version);
 		if (unlikely(Status == -1))
 				goto error;
 
 		/* Last step: install the packages. */
-		Status = InstallPackages(Fetched, Version, Checksums);
+		Status = InstallPackages(Fetched, ZipData, Version);
 		if (unlikely(Status == -1))
 				goto error;
 
@@ -110,7 +110,7 @@ int8_t Install(char *Version, uint8_t CheckVersion) {
 
 		/* Delete the old version, if it exists and if the user agrees. */
 		if (LastVersion) {
-				if (strcmp(LastVersion, Version) != 0) {
+				if (strcmp(LastVersion, Version) != 0 && CheckVersion) {
 						if (AskForConfirmation("Delete the old installed version of studio? [Y/N]"))
 								DeleteVersion(LastVersion);
 				}
@@ -128,6 +128,9 @@ int8_t Install(char *Version, uint8_t CheckVersion) {
 
 		if (Checksums)
 				free(Checksums);
+
+		if (LastVersion)
+				free(LastVersion);
 
 		return 0;
 
