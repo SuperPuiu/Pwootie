@@ -51,24 +51,22 @@ char *FormatChecksums(FetchStruct *Fetched) {
 		return Checksums;
 }
 
-int8_t InstallPackages(FetchStruct *Fetched, char *restrict Version, char *restrict Checksums) {
+int8_t InstallPackages(FetchStruct *Fetched, ZipMemoryStruct *ZipData, char *Version) {
 		CURLcode  Response;
 		FILE      *Installer;
 
-		struct zip_stat *ZipStat = NULL;
+		struct zip_stat *ZipStat  = NULL;
 
-		uint32_t SettingsLen = strlen(APP_SETTINGS_DATA), LengthVersion = strlen(Version);
-		uint32_t InstallerLength = strlen(OFFICIAL_INSTALLER), TempDirLength = strlen(TEMP_PWOOTIE_FOLDER);
+		uint32_t SettingsLen      = strlen(APP_SETTINGS_DATA), LengthVersion = strlen(Version);
+		uint32_t InstallerLength  = strlen(OFFICIAL_INSTALLER), TempDirLength = strlen(TEMP_PWOOTIE_FOLDER);
 		uint32_t InstallDirLength = strlen(INSTALL_DIR), HomeLength = strlen(getenv("HOME"));
-		uint32_t AppSettingsLen = strlen(APP_SETTINGS);
+		uint32_t AppSettingsLen   = strlen(APP_SETTINGS);
 
 		/* The 'Official' string is built inside of this function only to reuse it later. Same for 'InstallDir'. */
 		char **Instructions   = NULL;
 		char *InstallDir      = NULL;
 		char *Official        = malloc((InstallerLength + TempDirLength + 64 + 1) * sizeof(char));
 		char *FullURL         = BuildString(4, CDN_URL, Version, "-", OFFICIAL_INSTALLER);
-
-		unused(Checksums);
 
 		if (unlikely(!Official))
 				Error("[FATAL]: Unable to allocate Official during InstallPackages call.", ERR_MEMORY);
@@ -131,6 +129,7 @@ int8_t InstallPackages(FetchStruct *Fetched, char *restrict Version, char *restr
 		InstallDir[HomeLength + InstallDirLength + LengthVersion + AppSettingsLen + 3] = '\0';
 
 		FILE *AppSettings = fopen(InstallDir, "w");
+
 		if (unlikely(!AppSettings)) {
 				Error("[ERROR]: Failed to create AppSettings durign InstallPackages call.", ERR_STANDARD | ERR_NOEXIT);
 				goto error;
@@ -146,29 +145,33 @@ int8_t InstallPackages(FetchStruct *Fetched, char *restrict Version, char *restr
 				if (!CurPackage.Download)
 						continue;
 
-				uint32_t        ZipLength = strlen(CurPackage.Name), InstructionLength = strlen(Instructions[i]);
-				int32_t         ErrorCode = 0;
-				zip_t           *ZipPointer;
+				uint32_t        InstructionLength = strlen(Instructions[i]);
 				zip_error_t     ZipError;
+				zip_t           *ZipPointer;
+				zip_source_t    *ZipSource;
 				zip_file_t      *FileDescriptor;
 
-				char *Memory;
-				FILE *NewFile;
+				char            *Memory;
+				FILE            *NewFile;
 
 				ZipStat = malloc(sizeof(struct zip_stat));
 
 				if (unlikely(!ZipStat))
 						Error("[FATAL]: Unable to allocate ZipStat during InstallPackages call.", ERR_MEMORY);
 
-				/* Construct required paths. Official path becomes the path to which the zip file is located. */
+				/* Construct required installation path. */
 				memcpy(InstallDir + HomeLength + InstallDirLength + LengthVersion + 3, Instructions[i], InstructionLength + 1);
-				memcpy(Official + TempDirLength, CurPackage.Name, ZipLength);
-				Official[TempDirLength + ZipLength] = '\0';
 
-				ZipPointer = zip_open(Official, 0, &ErrorCode);
+				ZipSource = zip_source_buffer_create(ZipData[i].Data, ZipData[i].Size, 1, &ZipError);
+
+				if (unlikely(!ZipSource)) {
+						Error("[ERROR]: Unable to create ZipSource out of buffer %i. (zip error: %s)", ERR_STANDARD | ERR_NOEXIT, i, zip_error_strerror(&ZipError));
+						goto error;
+				}
+
+				ZipPointer = zip_open_from_source(ZipSource, 0, &ZipError);
 
 				if (unlikely(!ZipPointer)) {
-						zip_error_init_with_code(&ZipError, ErrorCode);
 						Error("[ERROR]: Unable to open zip file %s. (zip error: %s)", ERR_STANDARD | ERR_NOEXIT, Official, zip_error_strerror(&ZipError));
 						goto error;
 				}
@@ -276,7 +279,7 @@ error:
 		return -1;
 }
 
-int8_t DownloadPackages(FetchStruct *Fetched, char *restrict Version, char *restrict Checksums) {
+int8_t DownloadPackages(FetchStruct *Fetched, ZipMemoryStruct *ZipData, char *Version) {
 		uint32_t LengthURL = strlen(CDN_URL), LengthVersion = strlen(Version), RootPartLength = strlen(TEMP_PWOOTIE_FOLDER);
 		uint8_t Increment = 0;
 		uint8_t PackagesToDownload = 0;
@@ -288,15 +291,7 @@ int8_t DownloadPackages(FetchStruct *Fetched, char *restrict Version, char *rest
 		char *LinkPointers[32];
 		char *RequiredChecksums[32];
 
-		int FileDescriptors[32];
 		int64_t ZipSizes[32];
-
-		unused(Checksums);
-
-		/*if (unlikely(!BufferPointers))
-				Error("[FATAL]: Failed to allocate BufferPointers during DownloadPackages call.", ERR_MEMORY);
-		else if (unlikely(!LinkPointers))
-				Error("[FATAL]: Failed to allocate LinkPointers during DownloadPackages call.", ERR_MEMORY);*/
 
 		if (unlikely(!FullURL))
 				Error("[FATAL]: Failed to allocate memory for FullURL during DownloadPackages call.", ERR_MEMORY);
@@ -341,17 +336,13 @@ int8_t DownloadPackages(FetchStruct *Fetched, char *restrict Version, char *rest
 						memcpy(ZipFilePath + RootPartLength, CurPackage.Name, PackageNameLength);
 						ZipFilePath[RootPartLength + PackageNameLength] = '\0';
 
-						LinkPointers[PackagesToDownload] = strdup(FullURL);
-						BufferPointers[PackagesToDownload] = malloc(CurPackage.ZipSize);
-						FileDescriptors[PackagesToDownload] = open(ZipFilePath, O_CREAT | O_RDWR | O_DIRECT, 0640);
-						ZipSizes[PackagesToDownload] = CurPackage.ZipSize;
+						LinkPointers[PackagesToDownload]      = strdup(FullURL);
+						BufferPointers[PackagesToDownload]    = malloc(CurPackage.ZipSize);
+						ZipSizes[PackagesToDownload]          = CurPackage.ZipSize;
 						RequiredChecksums[PackagesToDownload] = Fetched->PackageList[LinkIndex].Checksum;
 
 						if (unlikely(!BufferPointers[PackagesToDownload])) {
 								Error("[ERROR]: Unable to allocate one data buffer.", ERR_MEMORY);
-						} else if (FileDescriptors[PackagesToDownload] == -1) {
-								Error("[ERROR]: Unable to open file %s.", ERR_STANDARD, ZipFilePath);
-								goto error;
 						} else if (unlikely(!LinkPointers[PackagesToDownload])) {
 								Error("[ERROR]: Unable to allocate link pointer during DownloadPackages call.", ERR_STANDARD | ERR_NOEXIT);
 								goto error;
@@ -396,6 +387,7 @@ int8_t DownloadPackages(FetchStruct *Fetched, char *restrict Version, char *rest
 						}
 				}
 
+				/* Check if everything was downloaded correctly. */
 				for (uint32_t LinkIndex = 0; LinkIndex < PackagesToDownload; LinkIndex++) {
 						uint8_t   Checksum[16];
 						char      ChecksumBuf[33];
@@ -408,10 +400,8 @@ int8_t DownloadPackages(FetchStruct *Fetched, char *restrict Version, char *rest
 								goto error;
 						}
 
-						write(FileDescriptors[LinkIndex], BufferPointers[LinkIndex], ZipSizes[LinkIndex]);
-						close(FileDescriptors[LinkIndex]);
-
-						free(BufferPointers[LinkIndex]);
+						ZipData[Index + LinkIndex].Data = BufferPointers[LinkIndex];
+						ZipData[Index + LinkIndex].Size = ZipSizes[LinkIndex];
 						free(LinkPointers[LinkIndex]);
 				}
 
@@ -434,13 +424,12 @@ error:
 		for (uint8_t SrcIndex = 0; SrcIndex < PackagesToDownload; SrcIndex++) {
 				free(LinkPointers[SrcIndex]);
 				free(BufferPointers[SrcIndex]);
-				close(FileDescriptors[SrcIndex]);
 		}
 
 		return -1;
 }
 
-FetchStruct* FetchPackages(char *restrict Version, char *restrict Checksums) {
+FetchStruct* FetchPackages(ZipMemoryStruct **ZipData, char *restrict Version, char *restrict Checksums) {
 		MemoryStruct ManifestContent;
 
 		/* Last time I counted there were 35 packages. Hopefully I didn't count them wrong. */
@@ -527,12 +516,17 @@ FetchStruct* FetchPackages(char *restrict Version, char *restrict Checksums) {
 								continue;
 						}
 
-#ifndef NDEBUG
+						#ifndef NDEBUG
 						printf("[DEBUG]: Skipping download for %s\n", PackagesData[i].Name);
-#endif
+						#endif
 						PackagesData[i].Download = 0;
 				}
 		}
+
+		*ZipData = malloc(sizeof(ZipMemoryStruct) * CurrentPackage);
+
+		if (unlikely(!*ZipData))
+				Error("[FATAL]: Unable to allocate ZipData struct.", ERR_MEMORY);
 
 		ReturnStruct->TotalPackages = CurrentPackage;
 		ReturnStruct->PackageList   = PackagesData;
