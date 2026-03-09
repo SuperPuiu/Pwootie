@@ -562,7 +562,7 @@ void RunWineCfg() {
 
 		setenv("WINEPREFIX", Prefix, 1);
 
-		if (unlikely(ExecProgram(Command, 0, 0, Command, NULL) != 0)) {
+		if (unlikely(ExecProgram(Command, 0, 0, NULL) != 0)) {
 				printf("[ERROR]: ExecProgram(%s) returned non zero value. Running default winecfg.\n", Command);
 				if (unlikely(system("winecfg") != 0)) /* Fallback. */
 						printf("[ERROR]: Unable to run fallback winecfg. Aborting.\n");
