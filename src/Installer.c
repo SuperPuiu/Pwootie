@@ -126,14 +126,12 @@ int8_t Install(char *Version, uint8_t CheckVersion) {
 		free(Fetched->PackageList);
 		free(Fetched);
 
+		free(ZipData);
+
 		if (Checksums)
 				free(Checksums);
 
-		if (LastVersion)
-				free(LastVersion);
-
 		return 0;
-
 error:
 		if (Fetched) {
 				free(Fetched->PackageList);

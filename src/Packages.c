@@ -32,7 +32,7 @@ char *FormatChecksums(FetchStruct *Fetched) {
 		uint32_t Offset = 0;
 
 		/* We add Fetched->TotalPackages for the semicolons. */
-		char *Checksums = malloc((Fetched->TotalPackages * ChecksumSize + Fetched->TotalPackages) * sizeof(char));
+		char *Checksums = malloc((Fetched->TotalPackages * ChecksumSize + Fetched->TotalPackages + 1) * sizeof(char));
 
 		if (unlikely(!Checksums))
 				Error("[FATAL]: Unable to allocate Checksums buffer during FormatChecksums call.", ERR_MEMORY);

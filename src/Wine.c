@@ -495,8 +495,7 @@ int8_t SetupPrefix() {
 		Location = GetPrefixPath(0);
 
 		if (unlikely(mkdir(Location, 0755) && errno != EEXIST)) {
-				Error("[FATAL]: Unable to create folder during SetupPrefix call.", ERR_STANDARD | ERR_NOEXIT);
-				Error(Location, ERR_STANDARD | ERR_NOEXIT);
+				Error("[FATAL]: Unable to create folder %s during SetupPrefix call.", ERR_STANDARD | ERR_NOEXIT, Location);
 				goto error;
 		}
 
