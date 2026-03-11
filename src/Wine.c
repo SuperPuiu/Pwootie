@@ -402,7 +402,7 @@ int8_t SetupWine(uint8_t CheckExistence) {
 				goto error;
 		}
 
-		printf("Unzipped new version.\n");
+		printf(" Unzipped new version.\n");
 
 		/* Remove zip file. */
 		remove(Path);
