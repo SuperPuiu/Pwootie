@@ -232,7 +232,6 @@ int8_t InstallPackages(FetchStruct *Fetched, ZipMemoryStruct *ZipData, char *Ver
 				}
 
 				free(ZipStat);
-				free(ZipData[i].Data);
 				zip_close(ZipPointer);
 
 				ZipStat = NULL;
@@ -521,6 +520,9 @@ FetchStruct* FetchPackages(ZipMemoryStruct **ZipData, char *restrict Version, ch
 						#endif
 						PackagesData[i].Download = 0;
 				}
+		} else {
+				for (uint8_t i = 0; i < CurrentPackage; i++)
+						PackagesData[i].Download = 1;
 		}
 
 		*ZipData = malloc(sizeof(ZipMemoryStruct) * CurrentPackage);
