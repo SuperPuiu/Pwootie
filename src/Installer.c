@@ -47,7 +47,6 @@ int8_t Install(char *Version, uint8_t CheckVersion) {
 
 		/* We should check some things before installing a studio version. */
 		if (PwootieFile) {
-				Checksums = PwootieReadEntry("checksums", 0);
 				LastVersion = PwootieReadEntry("version", 0);
 
 				if (CheckVersion && LastVersion) {
@@ -61,6 +60,9 @@ int8_t Install(char *Version, uint8_t CheckVersion) {
 								return 0;
 						}
 				}
+
+				if (CheckVersion)
+						Checksums = PwootieReadEntry("checksums", 0);
 
 				/* If we get here then it means that we have to install a new update.
 					* Let us create a copy of the old version folder where we'll apply the new update.
@@ -85,7 +87,8 @@ int8_t Install(char *Version, uint8_t CheckVersion) {
 		if (unlikely(Status == -1))
 				goto error;
 
-		/* Last step: install the packages. */
+		/* Last step: install the packages.
+			* NOTE: ZipData gets invalidated after this step! */
 		Status = InstallPackages(Fetched, ZipData, Version);
 		if (unlikely(Status == -1))
 				goto error;

@@ -232,6 +232,7 @@ int8_t InstallPackages(FetchStruct *Fetched, ZipMemoryStruct *ZipData, char *Ver
 				}
 
 				free(ZipStat);
+				free(ZipData[i].Data);
 				zip_close(ZipPointer);
 
 				ZipStat = NULL;
@@ -250,9 +251,8 @@ int8_t InstallPackages(FetchStruct *Fetched, ZipMemoryStruct *ZipData, char *Ver
 		/* Remove temporary directory. We need to reset the path buffer. */
 		Official[TempDirLength] = '\0';
 
-		if (unlikely(nftw(Official, DeleteFile, 10, FTW_DEPTH | FTW_MOUNT | FTW_PHYS) < 0)) {
+		if (unlikely(nftw(Official, DeleteFile, 10, FTW_DEPTH | FTW_MOUNT | FTW_PHYS) < 0))
 				Error("[ERROR]: Failed to remove the Pwootie temporary directory (%s).", ERR_STANDARD | ERR_NOEXIT, Official);
-		}
 
 		/* Free additional variables. */
 		free(FullURL);
