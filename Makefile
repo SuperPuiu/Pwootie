@@ -49,7 +49,8 @@ clean:
 	rm $(BUILD_DIR)/*.*
 
 install:
-	sudo cp $(OUTPUT) /usr/local/bin/pwootie
+	sudo cp $(OUTPUT) /usr/bin/pwootie
+	sudo cp pwootie.desktop /usr/share/applications/pwootie.desktop
 
 test: $(OUTPUT_TEST)
 release: $(OUTPUT)

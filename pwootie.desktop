@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=Pwootie
+GenericName=Studio Launcher
+Comment=Run Roblox Studio on Linux
+Exec=pwootie %u
+MimeType=application/x-roblox-place;application/x-roblox-model;x-scheme-handler/roblox-studio;x-scheme-handler/roblox-studio-auth;
+Type=Application
+Terminak=true
