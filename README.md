@@ -1,5 +1,5 @@
 # Pwootie
-Pwootie is a ROBLOX studio bootstrapper written in C, Linux only compatible. It doesn't do anything better than the other bootstrappers, but it does its job good enough. For more information, please view the documentation.
+Pwootie is a blazingly fast ROBLOX studio bootstrapper written in C, Linux only compatible. See the documentation for information on how to build and use it.
 
 # Special thanks
 [md5-c](https://github.com/Zunawe/md5-c) for the public domain implementation of the md5 algorithm.
