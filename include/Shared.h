@@ -72,8 +72,6 @@ typedef struct Package {
 		char    Name[64];
 		char    Checksum[33];
 
-		uint8_t Download:1;
-
 		uint64_t Size;
 		uint64_t ZipSize;
 } Package;

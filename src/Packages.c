@@ -140,11 +140,6 @@ int8_t InstallPackages(FetchStruct *Fetched, ZipMemoryStruct *ZipData, char *Ver
 
 		/* Decompress all zips downloaded during DownloadPackages call. */
 		for (uint8_t i = 0; i < Fetched->TotalPackages; i++) {
-				Package         CurPackage = Fetched->PackageList[i];
-
-				if (!CurPackage.Download)
-						continue;
-
 				uint32_t        InstructionLength = strlen(Instructions[i]);
 				zip_error_t     ZipError;
 				zip_t           *ZipPointer;
@@ -322,18 +317,11 @@ int8_t DownloadPackages(FetchStruct *Fetched, ZipMemoryStruct *ZipData, char *Ve
 
 				for (uint32_t LinkIndex = Index; LinkIndex < Increment + Index; LinkIndex++) {
 						Package CurPackage = Fetched->PackageList[LinkIndex];
-
-						if (!CurPackage.Download)
-								continue;
-
 						uint32_t  PackageNameLength = strlen(CurPackage.Name);
 
 						/* The extra byte is obviously the dash. Well I suppose it's obvious. */
-						memcpy(FullURL + LengthURL + LengthVersion + 1, CurPackage.Name, PackageNameLength);
-						FullURL[LengthURL + LengthVersion + PackageNameLength + 1] = '\0';
-
-						memcpy(ZipFilePath + RootPartLength, CurPackage.Name, PackageNameLength);
-						ZipFilePath[RootPartLength + PackageNameLength] = '\0';
+						memcpy(FullURL + LengthURL + LengthVersion + 1, CurPackage.Name, PackageNameLength + 1);
+						memcpy(ZipFilePath + RootPartLength, CurPackage.Name, PackageNameLength + 1);
 
 						LinkPointers[PackagesToDownload]      = strdup(FullURL);
 						BufferPointers[PackagesToDownload]    = malloc(CurPackage.ZipSize);
@@ -370,8 +358,6 @@ int8_t DownloadPackages(FetchStruct *Fetched, ZipMemoryStruct *ZipData, char *Ve
 
 						if (unlikely(MultiCode != CURLM_OK)) {
 								Error("[ERROR]: MultiCode was not CURLM_OK during DownloadPackages. (cURL error: %s)", ERR_STANDARD | ERR_NOEXIT, curl_multi_strerror(MultiCode));
-								Error((char*)curl_multi_strerror(MultiCode), ERR_STANDARD | ERR_NOEXIT);
-
 								goto error;
 						}
 				} while (StillRunning);
@@ -510,19 +496,14 @@ FetchStruct* FetchPackages(ZipMemoryStruct **ZipData, char *restrict Version, ch
 
 		if (Checksums) {
 				for (uint8_t i = 0; i < CurrentPackage; i++) {
-						if (!strstr(Checksums, PackagesData[i].Checksum)) {
-								PackagesData[i].Download = 1;
+						if (!strstr(Checksums, PackagesData[i].Checksum))
 								continue;
-						}
 
 						#ifndef NDEBUG
 						printf("[DEBUG]: Skipping download for %s\n", PackagesData[i].Name);
 						#endif
-						PackagesData[i].Download = 0;
+						memmove(PackagesData + i, PackagesData + i + 1, (CurrentPackage - i - 1) * sizeof(Package));
 				}
-		} else {
-				for (uint8_t i = 0; i < CurrentPackage; i++)
-						PackagesData[i].Download = 1;
 		}
 
 		*ZipData = malloc(sizeof(ZipMemoryStruct) * CurrentPackage);
