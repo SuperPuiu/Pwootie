@@ -503,6 +503,7 @@ FetchStruct* FetchPackages(ZipMemoryStruct **ZipData, char *restrict Version, ch
 						printf("[DEBUG]: Skipping download for %s\n", PackagesData[i].Name);
 						#endif
 						memmove(PackagesData + i, PackagesData + i + 1, (CurrentPackage - i - 1) * sizeof(Package));
+						CurrentPackage -= 1;
 				}
 		}
 
