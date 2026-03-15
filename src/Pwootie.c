@@ -5,6 +5,15 @@ FILE *PwootieFile = NULL;
 char *PwootieBuffer = NULL;
 uint32_t BufferSize = 0;
 
+static void PwootieIncreaseBuffer(uint32_t Increase) {
+		PwootieBuffer = realloc(PwootieBuffer, (BufferSize + Increase) * sizeof(char));
+
+		if (unlikely(!PwootieBuffer))
+				Error("[FATAL]: Unable to realloc PwootieBuffer during PwootieWriteEntry.", ERR_MEMORY);
+
+		BufferSize += Increase;
+}
+
 /* OpenPwootieFile() opens the pwootie file.
 	* @return 0 on success and -1 on failure. */
 int8_t OpenPwootieFile() {
@@ -62,7 +71,6 @@ static int32_t PwootieGetEntry(char *Entry) {
 						if (unlikely(EntryIndex == 128))
 								Error("[FATAL]: EntryIndex reached number 128. Is the PwooteFile corrupt?", ERR_STANDARD);
 						else if (unlikely(SrcIndex == BufferSize)) {
-								Error("[WARNING]: SrcIndex reached BufferSize while searching for %s. Is the PwootieFile corrupt?", ERR_STANDARD | ERR_WARNING, Entry);
 								return -1;
 						}
 				} while (PwootieBuffer[SrcIndex] != '=');
@@ -133,9 +141,19 @@ void PwootieExit() {
 		if (unlikely(!PwootieFile))
 				return;
 
-		fseek(PwootieFile, 0, SEEK_SET);
-		fwrite(PwootieBuffer, BufferSize, sizeof(char), PwootieFile);
+		char *Path = BuildString(5, getenv("HOME"), "/", INSTALL_DIR, "/", PWOOTIE_DATA);
+
+		fclose(PwootieFile);
+		PwootieFile = fopen(Path, "w");
+
+		if (unlikely(!PwootieFile))
+				Error("[FATAL]: Unable to reopen PwootieFile during PwootieExit.", ERR_STANDARD);
+
+		fwrite(PwootieBuffer, sizeof(char), BufferSize, PwootieFile);
+
 		free(PwootieBuffer);
+		free(Path);
+
 		fclose(PwootieFile);
 
 		PwootieBuffer = NULL;
@@ -145,61 +163,36 @@ void PwootieExit() {
 /* PwootieWriteEntry() writes an entry to the buffer.
 	* @return nothing */
 void PwootieWriteEntry(char *restrict Entry, char *restrict Data) {
-		uint8_t Reallocated = 0;
+		uint32_t EntrySize = strlen(Entry);
+		uint32_t DataSize = strlen(Data);
+		uint32_t RequiredSize = EntrySize + DataSize + 2; /* 2 for the equal sign and the newline byte */
+		uint32_t Newline;
 
-		uint32_t EntrySize = strlen(Entry), DataSize = strlen(Data);
+		int32_t NewEntrySize;
 		int32_t EntryIndex = PwootieGetEntry(Entry);
 
-		/* If EntryIndex is -1 it means the entry doesn't exist, which also means we have to reallocate to have enough space. */
 		if (EntryIndex == -1) {
-				EntryIndex = BufferSize;
-				PwootieBuffer = realloc(PwootieBuffer, sizeof(char) * (BufferSize + EntrySize + DataSize + 2));
-				BufferSize += EntrySize + DataSize + 2;
+				PwootieIncreaseBuffer(RequiredSize);
+				EntryIndex = BufferSize - RequiredSize;
+		} else {
+				Newline = EntryIndex;
 
-				if (unlikely(!PwootieBuffer))
-						Error("[FATAL]: Unable to realloc the PwootieBuffer during PwootieWriteEntry.", ERR_MEMORY);
-		} else if (BufferSize < EntrySize + DataSize + 2) {
-				uint16_t Extra = BufferSize - (EntrySize + DataSize + 2);
-				PwootieBuffer = realloc(PwootieBuffer, sizeof(char) * (BufferSize + Extra));
-
-				BufferSize += Extra;
-				Reallocated = 1;
-
-				if (unlikely(!PwootieBuffer))
-						Error("[FATAL]: Unable to realloc the PwootieBuffer during PwootieWriteEntry.", ERR_MEMORY);
-		}
-
-		if (EntryIndex > -1) {
-				/* Move anything after the entry forward, to make space. */
-				uint32_t Newline = EntryIndex;
-
-				/* We're expecting every entry to end with a newline. */
-				while (PwootieBuffer[Newline] != '\n' && Newline < BufferSize)
+				while (PwootieBuffer[Newline] != '\n' && Newline != BufferSize)
 						Newline++;
 
-				if (Newline == BufferSize) {
-						Error("[WARNING]: Missing ending newline for entry %s.", ERR_STANDARD | ERR_WARNING, Entry);
+				NewEntrySize = RequiredSize - (Newline - EntryIndex + 1);
+
+				if (NewEntrySize > 0)
+						PwootieIncreaseBuffer((uint32_t)NewEntrySize);
+
+				if (Newline == BufferSize - NewEntrySize - 1) {
+						if (NewEntrySize < 0)
+								BufferSize += NewEntrySize - 1;
 				} else {
-						uint32_t CurrentSize = (Newline - EntryIndex) + 1, RequiredSize = EntrySize + DataSize + 2;
-						int64_t Result = (int64_t)RequiredSize - (int64_t)CurrentSize;
+						memmove(PwootieBuffer + Newline + NewEntrySize, PwootieBuffer + Newline, (BufferSize - Newline - NewEntrySize + 1) * sizeof(char));
 
-						if (Result != 0) {
-								// printf("%u %u %li\n", CurrentSize, RequiredSize, Result);
-								if (Result > 0 && !Reallocated) {
-										PwootieBuffer = realloc(PwootieBuffer, sizeof(char) * (BufferSize + Result));
-
-										if (unlikely(!PwootieBuffer))
-												Error("[FATAL]: Unable to realloc PwootieBuffer.", ERR_MEMORY);
-								}
-
-								memmove(
-										PwootieBuffer + (Newline + Result),
-										PwootieBuffer + Newline,
-										BufferSize - Newline);
-
-								if (Result != 0)
-										BufferSize += Result;
-						}
+						if (NewEntrySize < 0)
+								BufferSize += NewEntrySize;
 				}
 		}
 
