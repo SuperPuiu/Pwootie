@@ -168,7 +168,7 @@ void PwootieWriteEntry(char *restrict Entry, char *restrict Data) {
 		uint32_t RequiredSize = EntrySize + DataSize + 2; /* 2 for the equal sign and the newline byte */
 		uint32_t Newline;
 
-		int32_t NewEntrySize;
+		int32_t AdditionalSize;
 		int32_t EntryIndex = PwootieGetEntry(Entry);
 
 		if (EntryIndex == -1) {
@@ -180,19 +180,19 @@ void PwootieWriteEntry(char *restrict Entry, char *restrict Data) {
 				while (PwootieBuffer[Newline] != '\n' && Newline != BufferSize)
 						Newline++;
 
-				NewEntrySize = RequiredSize - (Newline - EntryIndex + 1);
+				AdditionalSize = RequiredSize - (Newline - EntryIndex + 1);
 
-				if (NewEntrySize > 0)
-						PwootieIncreaseBuffer((uint32_t)NewEntrySize);
+				if (AdditionalSize > 0)
+						PwootieIncreaseBuffer((uint32_t)AdditionalSize);
 
-				if (Newline == BufferSize - NewEntrySize - 1) {
-						if (NewEntrySize < 0)
-								BufferSize += NewEntrySize - 1;
+				if (Newline == BufferSize - AdditionalSize - 1) {
+						if (AdditionalSize < 0)
+								BufferSize += AdditionalSize - 1;
 				} else {
-						memmove(PwootieBuffer + Newline + NewEntrySize, PwootieBuffer + Newline, (BufferSize - Newline - NewEntrySize + 1) * sizeof(char));
+						memmove(PwootieBuffer + Newline + AdditionalSize, PwootieBuffer + Newline, (BufferSize - Newline - AdditionalSize) * sizeof(char));
 
-						if (NewEntrySize < 0)
-								BufferSize += NewEntrySize;
+						if (AdditionalSize < 0)
+								BufferSize += AdditionalSize;
 				}
 		}
 
