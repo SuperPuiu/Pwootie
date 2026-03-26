@@ -95,6 +95,11 @@ int8_t CopyRelativeDir(char *Old, char *New) {
 		NewCopyPathRootPos = strlen(NewCopyPath);
 		OldCopyPathRootPos = strlen(OldCopyPath);
 
+		if (unlikely(access(OldCopyPath, R_OK) != 0)) {
+				Error("[WARNING]: %s couldn't be accessed. It is recommended you use pwootie reinstall studio.", ERR_STANDARD | ERR_WARNING, OldCopyPath);
+				goto normal_exit;
+		}
+
 		if (unlikely(mkdir(NewCopyPath, 0755) && errno != EEXIST)) {
 				Error("[ERROR]: Unable to make directory %s.", ERR_STANDARD | ERR_NOEXIT, NewCopyPath);
 				goto error;
@@ -103,6 +108,7 @@ int8_t CopyRelativeDir(char *Old, char *New) {
 		if (unlikely(nftw(OldCopyPath, CopyEntry, 10, FTW_MOUNT | FTW_PHYS)))
 				goto error;
 
+normal_exit:
 		free(OldCopyPath);
 		free(NewCopyPath);
 		return 0;
