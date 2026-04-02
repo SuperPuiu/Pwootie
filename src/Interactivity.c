@@ -1,12 +1,15 @@
 #include <Shared.h>
-#include <stdarg.h>
+#include <unistd.h>
 
 uint8_t AskForConfirmation(char *InitialMessage) {
 		printf("%s\n", InitialMessage);
-		char Input[64];
+		char Input[2];
+
+		if (!isatty(STDIN_FILENO))
+				return 1;
 
 		do {
-				fgets(Input, 64, stdin);
+				fgets(Input, 2, stdin);
 
 				if (Input[0] == 'y' || Input[0] == 'Y')
 						return 1;
@@ -20,6 +23,9 @@ uint8_t AskForConfirmation(char *InitialMessage) {
 uint8_t AskForOption(uint8_t Options, char **OptionNames) {
 		printf("Please select one of the following:\n");
 		char Input[64];
+
+		if (!isatty(STDIN_FILENO))
+				return 0;
 
 		for (uint8_t i = 0; i < Options; i++)
 				printf("> %s: %u\n", OptionNames[i], i);
