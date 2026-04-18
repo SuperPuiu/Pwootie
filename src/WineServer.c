@@ -1,4 +1,4 @@
-#include <Shared.h>
+#include "../include/Shared.h"
 
 static int8_t SetupEnv(char **WineExec, char **Prefix) {
 		*Prefix = GetPrefixPath(0);

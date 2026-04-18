@@ -1,9 +1,9 @@
-#include <Shared.h>
+#include "../include/Shared.h"
 
 #include <sys/stat.h>
 #include <errno.h>
 #include <zip.h>
-#include <md5.h>
+#include "../include/md5.h"
 
 #include <fcntl.h>
 #include <unistd.h>
@@ -11,6 +11,19 @@
 #define OFFICIAL_INSTALLER  "RobloxStudioInstaller.exe"
 #define APP_SETTINGS        "AppSettings.xml"
 #define APP_SETTINGS_DATA   "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\r\n<Settings>\r\n        <ContentFolder>content</ContentFolder>\r\n        <BaseUrl>http://www.roblox.com</BaseUrl>\r\n</Settings>\r\n"
+
+typedef struct {
+    char *filename;
+    int index;
+    int total;
+    int percent;
+    uint64_t downloaded;
+    uint64_t total_size;
+    curl_off_t last_dlnow;
+} ParallelProgress;
+
+static uint64_t g_total_downloaded = 0;
+static uint64_t g_grand_total = 0;
 
 /* This is ugly. */
 static inline void ChecksumToString(uint8_t *restrict Checksum, char *restrict Buffer) {
@@ -273,145 +286,174 @@ error:
 		return -1;
 }
 
+/* Progress callback for parallel downloads */
+static int ParallelProgressCallback(void *clientp, curl_off_t dltotal, curl_off_t dlnow,
+                                     curl_off_t ultotal, curl_off_t ulnow) {
+    ParallelProgress *p = (ParallelProgress*)clientp;
+
+    (void)ultotal;
+    (void)ulnow;
+
+    if (dltotal > 0) {
+        int new_percent = (int)((double)dlnow / (double)dltotal * 100);
+
+        if (new_percent != p->percent) {
+            /* Update global downloaded counter */
+            static curl_off_t old_dlnow[64] = {0};
+            static time_t last_time = 0;
+            static curl_off_t last_bytes[64] = {0};
+
+            if (dlnow > old_dlnow[p->index - 1]) {
+                g_total_downloaded += (dlnow - old_dlnow[p->index - 1]);
+                old_dlnow[p->index - 1] = dlnow;
+            }
+            p->percent = new_percent;
+
+            /* Calculate speed */
+            double speed = 0;
+            time_t now = time(NULL);
+            if (now != last_time && last_bytes[p->index - 1] > 0) {
+                speed = (double)(dlnow - last_bytes[p->index - 1]) / (now - last_time) / 1024;
+                last_bytes[p->index - 1] = dlnow;
+                last_time = now;
+            } else if (last_bytes[p->index - 1] == 0) {
+                last_bytes[p->index - 1] = dlnow;
+                last_time = now;
+            }
+
+            /* Move to this file's line and clear it */
+            printf("\033[%d;1H", p->index + 2);
+            printf("\033[2K");
+
+            /* Print: [num/total] filename (current/total MB) speed KB/s percent% */
+            printf("  [%3d/%3d] %-35s (%6.2f / %6.2f MB) %7.2f KB/s %3d%%",
+                   p->index, p->total, p->filename,
+                   (double)dlnow / 1024 / 1024,
+                   (double)dltotal / 1024 / 1024,
+                   speed, new_percent);
+
+            /* Update total progress at bottom */
+            if (g_grand_total > 0) {
+                int total_percent = (int)((double)g_total_downloaded / (double)g_grand_total * 100);
+                printf("\033[%d;1H", p->total + 3);
+                printf("\033[2K");
+                printf("  Total Progress: %3d%% (%.2f / %.2f MB)", total_percent,
+                       (double)g_total_downloaded / 1024 / 1024,
+                       (double)g_grand_total / 1024 / 1024);
+            }
+
+            fflush(stdout);
+        }
+    }
+    return 0;
+}
 int8_t DownloadPackages(FetchStruct *Fetched, ZipMemoryStruct *ZipData, char *Version) {
-		uint32_t LengthURL = strlen(CDN_URL), LengthVersion = strlen(Version), RootPartLength = strlen(TEMP_PWOOTIE_FOLDER);
-		uint8_t Increment = 0;
-		uint8_t PackagesToDownload = 0;
+    uint32_t LengthURL = strlen(CDN_URL), LengthVersion = strlen(Version);
+    char *FullURL = malloc((LengthURL + LengthVersion + Fetched->LongestName + 2) * sizeof(char));
+    CURL *handles[64];
+    ParallelProgress progress[64];
+    MemoryStruct buffers[64];
+    CURLM *multi = curl_multi_init();
 
-		char *FullURL = malloc((LengthURL + LengthVersion + Fetched->LongestName + 2) * sizeof(char));
-		char *ZipFilePath = malloc((RootPartLength + Fetched->LongestName + 2) * sizeof(char));
+    if (unlikely(!FullURL))
+        Error("[FATAL]: Failed to allocate FullURL.", ERR_MEMORY);
 
-		char *BufferPointers[32];
-		char *LinkPointers[32];
-		char *RequiredChecksums[32];
+    memcpy(FullURL, CDN_URL, LengthURL);
+    memcpy(FullURL + LengthURL, Version, LengthVersion);
+    FullURL[LengthURL + LengthVersion] = '-';
 
-		int64_t ZipSizes[32];
+    /* Calculate grand total size */
+    g_grand_total = 0;
+    for (uint32_t i = 0; i < Fetched->TotalPackages; i++) {
+        g_grand_total += Fetched->PackageList[i].ZipSize;
+    }
+    g_total_downloaded = 0;
 
-		if (unlikely(!FullURL))
-				Error("[FATAL]: Failed to allocate memory for FullURL during DownloadPackages call.", ERR_MEMORY);
-		else if (unlikely(!ZipFilePath))
-				Error("[FATAL]: Failed to allocate memory for ZipFilePath during DownloadPackages call.", ERR_MEMORY);
+    /* Clear screen and print header */
+    printf("\033[2J\033[H");
+    printf(" Downloading packages..\n\n");
 
-		memcpy(ZipFilePath, TEMP_PWOOTIE_FOLDER, RootPartLength);
+    /* Reserve lines for each file */
+    for (uint32_t i = 0; i < Fetched->TotalPackages; i++) {
+        Package *pkg = &Fetched->PackageList[i];
+        printf("  [%3d/%3d] %-35s (%6.2f / %6.2f MB) %7.2f KB/s %3d%%\n",
+               i + 1, Fetched->TotalPackages, pkg->Name,
+               0.0, (double)pkg->ZipSize / 1024 / 1024, 0.0, 0);
+    }
 
-		memcpy(FullURL, CDN_URL, LengthURL);
-		memcpy(FullURL + LengthURL, Version, LengthVersion);
-		FullURL[LengthURL + LengthVersion] = '-';
+    /* Print total progress line */
+    printf("\n  Total Progress:   0%% (0.00 / 0.00 MB)\n");
+    fflush(stdout);
 
-		/* Create a temp folder for downloads.
-			* The installer function cleans it once installation finishes.*/
-		if (unlikely(mkdir(TEMP_PWOOTIE_FOLDER, 0755) && errno != EEXIST)) {
-				Error("[FATAL]: Failed to create new directory within /tmp/.", ERR_STANDARD | ERR_NOEXIT);
-				goto error;
-		}
+    /* Start all downloads in parallel */
+    for (uint32_t i = 0; i < Fetched->TotalPackages; i++) {
+        Package *pkg = &Fetched->PackageList[i];
+        uint32_t name_len = strlen(pkg->Name);
 
-		printf(" Downloading packages..\n");
+        buffers[i].Memory = malloc(pkg->ZipSize);
+        buffers[i].Size = 0;
 
-		/* A for loop is used here just to keep Index at a local scope. A while loop would've worked too. */
-		for (uint32_t Index = 0; Index < Fetched->TotalPackages;) {
-				CURLMsg *MultiMsg;
-				int32_t StillRunning = 1, MessagesLeft = 0;
+        if (unlikely(!buffers[i].Memory)) {
+            Error("[ERROR]: Failed to allocate buffer for %s", ERR_MEMORY, pkg->Name);
+            continue;
+        }
 
-				Increment = Fetched->TotalPackages - Index >= 32 ? 32 : Fetched->TotalPackages % 32;
-				PackagesToDownload = 0;
+        memcpy(FullURL + LengthURL + LengthVersion + 1, pkg->Name, name_len + 1);
 
-				for (uint32_t LinkIndex = Index; LinkIndex < Increment + Index; LinkIndex++) {
-						Package CurPackage = Fetched->PackageList[LinkIndex];
-						uint32_t  PackageNameLength = strlen(CurPackage.Name);
+        handles[i] = curl_easy_init();
+        curl_easy_setopt(handles[i], CURLOPT_URL, FullURL);
+        curl_easy_setopt(handles[i], CURLOPT_WRITEFUNCTION, WriteDataCallbackSimple);
+        curl_easy_setopt(handles[i], CURLOPT_WRITEDATA, &buffers[i]);
+        curl_easy_setopt(handles[i], CURLOPT_FOLLOWLOCATION, 1L);
+        curl_easy_setopt(handles[i], CURLOPT_USERAGENT, "PwootieDownload/1.0");
+        curl_easy_setopt(handles[i], CURLOPT_NOPROGRESS, 0L);
+        curl_easy_setopt(handles[i], CURLOPT_XFERINFOFUNCTION, ParallelProgressCallback);
 
-						/* The extra byte is obviously the dash. Well I suppose it's obvious. */
-						memcpy(FullURL + LengthURL + LengthVersion + 1, CurPackage.Name, PackageNameLength + 1);
-						memcpy(ZipFilePath + RootPartLength, CurPackage.Name, PackageNameLength + 1);
+        progress[i].filename = pkg->Name;
+        progress[i].index = i + 1;
+        progress[i].total = Fetched->TotalPackages;
+        progress[i].percent = 0;
+        progress[i].downloaded = 0;
+        progress[i].total_size = pkg->ZipSize;
 
-						LinkPointers[PackagesToDownload]      = strdup(FullURL);
-						BufferPointers[PackagesToDownload]    = malloc(CurPackage.ZipSize);
-						ZipSizes[PackagesToDownload]          = CurPackage.ZipSize;
-						RequiredChecksums[PackagesToDownload] = Fetched->PackageList[LinkIndex].Checksum;
+        curl_easy_setopt(handles[i], CURLOPT_XFERINFODATA, &progress[i]);
 
-						if (unlikely(!BufferPointers[PackagesToDownload])) {
-								Error("[ERROR]: Unable to allocate one data buffer.", ERR_MEMORY);
-						} else if (unlikely(!LinkPointers[PackagesToDownload])) {
-								Error("[ERROR]: Unable to allocate link pointer during DownloadPackages call.", ERR_STANDARD | ERR_NOEXIT);
-								goto error;
-						}
+        curl_multi_add_handle(multi, handles[i]);
+    }
 
-						PackagesToDownload += 1;
-				}
+    /* Main download loop */
+    int still_running;
+    do {
+        curl_multi_perform(multi, &still_running);
+        curl_multi_poll(multi, NULL, 0, 100, NULL);
+    } while (still_running);
 
-				/* We got no packages to download so may as well leave the loop early. */
-				if (PackagesToDownload == 0)
-						break;
+    printf("\n");
 
-				if (unlikely(CurlMultiSetup(BufferPointers, LinkPointers, PackagesToDownload) != 0)) {
-						Error("[ERROR]: CurlMultiSetup fail.", ERR_STANDARD | ERR_NOEXIT);
-						goto error;
-				}
+    /* Collect results and verify checksums */
+    for (uint32_t i = 0; i < Fetched->TotalPackages; i++) {
+        uint8_t Checksum[16];
+        char ChecksumBuf[33];
+        Package *pkg = &Fetched->PackageList[i];
 
-				/* https://curl.se/libcurl/c/multi-app.html */
-				do {
-						CURLMcode MultiCode = curl_multi_perform(CurlMulti, &StillRunning);
-						printf("  Current running curl handles: %02i\r", StillRunning);
-						fflush(stdout);
+        md5String(buffers[i].Memory, Checksum, buffers[i].Size);
+        ChecksumToString(Checksum, ChecksumBuf);
 
-						if (StillRunning)
-								MultiCode = curl_multi_poll(CurlMulti, NULL, 0, 1000, NULL);
+        if (unlikely(memcmp(ChecksumBuf, pkg->Checksum, 32) != 0)) {
+            Error("[ERROR]: Checksum mismatch for %s.", ERR_STANDARD | ERR_NOEXIT, pkg->Name);
+            return -1;
+        }
 
-						if (unlikely(MultiCode != CURLM_OK)) {
-								Error("[ERROR]: MultiCode was not CURLM_OK during DownloadPackages. (cURL error: %s)", ERR_STANDARD | ERR_NOEXIT, curl_multi_strerror(MultiCode));
-								goto error;
-						}
-				} while (StillRunning);
+        ZipData[i].Data = buffers[i].Memory;
+        ZipData[i].Size = buffers[i].Size;
+        curl_multi_remove_handle(multi, handles[i]);
+        curl_easy_cleanup(handles[i]);
+    }
 
-				printf("\n");
-
-				/* Make sure everything was downloaded. */
-				while ((MultiMsg = curl_multi_info_read(CurlMulti, &MessagesLeft)) != NULL) {
-						if (unlikely(MultiMsg->data.result != CURLE_OK)) {
-								Error("[ERROR]: One or more packages failed to download.", ERR_STANDARD | ERR_NOEXIT);
-								goto error;
-						}
-				}
-
-				/* Check if everything was downloaded correctly. */
-				for (uint32_t LinkIndex = 0; LinkIndex < PackagesToDownload; LinkIndex++) {
-						uint8_t   Checksum[16];
-						char      ChecksumBuf[33];
-
-						md5String(BufferPointers[LinkIndex], Checksum, ZipSizes[LinkIndex]);
-						ChecksumToString(Checksum, ChecksumBuf);
-
-						if (unlikely(memcmp(ChecksumBuf, RequiredChecksums[LinkIndex], 32) != 0)) {
-								Error("[ERROR]: One or more packages' checksums are not matching.", ERR_STANDARD | ERR_NOEXIT);
-								goto error;
-						}
-
-						ZipData[Index + LinkIndex].Data = BufferPointers[LinkIndex];
-						ZipData[Index + LinkIndex].Size = ZipSizes[LinkIndex];
-						free(LinkPointers[LinkIndex]);
-				}
-
-				ResetMultiCurl(PackagesToDownload);
-				Index += Increment;
-
-				printf("  Batch downloaded!\n");
-		}
-
-		printf(" Download completed!\n");
-
-		free(ZipFilePath);
-		free(FullURL);
-
-		return 0;
-error:
-		free(ZipFilePath);
-		free(FullURL);
-
-		for (uint8_t SrcIndex = 0; SrcIndex < PackagesToDownload; SrcIndex++) {
-				free(LinkPointers[SrcIndex]);
-				free(BufferPointers[SrcIndex]);
-		}
-
-		return -1;
+    curl_multi_cleanup(multi);
+    free(FullURL);
+    printf("\n Download completed! (%.2f MB total)\n", (double)g_grand_total / 1024 / 1024);
+    return 0;
 }
 
 FetchStruct* FetchPackages(ZipMemoryStruct **ZipData, char *restrict Version, char *restrict Checksums) {

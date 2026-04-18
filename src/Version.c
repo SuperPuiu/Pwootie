@@ -1,4 +1,4 @@
-#include <Shared.h>
+#include "../include/Shared.h"
 
 int8_t GetVersionData(VersionData *Data) {
 		MemoryStruct Chunk;
