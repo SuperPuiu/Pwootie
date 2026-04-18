@@ -1,4 +1,4 @@
-#include <Shared.h>
+#include "../include/Shared.h"
 #include <string.h>
 
 #define CURL_ARRAY_SIZE 32
@@ -20,7 +20,31 @@ CURLM *CurlMulti;
 static size_t WriteMemoryCallback    (void *Contents, size_t Size, size_t DataSize, void *UserPointer);
 static size_t WriteFileCallback      (void *Contents, size_t _Size, size_t DataSize, void *DownloadInfo);
 static size_t ParseDownloadHeader    (void *HeaderPtr, size_t Size, size_t DataSize, void *Info);
-static size_t WriteDataCallbackSimple(void *Contents, size_t Size, size_t DataSize, void *UserPointer);
+size_t WriteDataCallbackSimple(void *Contents, size_t Size, size_t DataSize, void *UserPointer);
+/* Progress callback data */
+typedef struct {
+    char *filename;
+    int current;
+    int total;
+    uint64_t size;
+} ProgressData;
+
+/* Progress callback for download percentage */
+static int DownloadProgressCallback(void *clientp, curl_off_t dltotal, curl_off_t dlnow,
+                                     curl_off_t ultotal, curl_off_t ulnow) {
+    ProgressData *data = (ProgressData*)clientp;
+    (void)ultotal;
+    (void)ulnow;
+
+    if (dltotal > 0 && data->filename) {
+        int percent = (int)((double)dlnow / (double)dltotal * 100);
+        printf("\r  [%d/%d] %s: %3d%% (%lld/%lld bytes)",
+               data->current, data->total, data->filename,
+               percent, (long long)dlnow, (long long)dltotal);
+        fflush(stdout);
+    }
+    return 0;
+}
 
 void SetupHandles() {
 		CurlHandle = curl_easy_init(), CurlDownloadHandle = curl_easy_init();
@@ -56,20 +80,29 @@ CURLcode CurlGet(MemoryStruct *Chunk, char *WithURL) {
 		return curl_easy_perform(CurlHandle);
 }
 
-int8_t CurlMultiSetup(char **Buffers, char **Links, uint16_t Total) {
-		if (unlikely(Total > CURL_ARRAY_SIZE))
-				return -1;
+int8_t CurlMultiSetup(char **Buffers, char **Links, uint16_t Total, void *ProgressDataVoid) {
+    ProgressData *ProgressArray = (ProgressData*)ProgressDataVoid;
 
-		for (uint16_t CurrentIndex = 0; CurrentIndex < Total; CurrentIndex++) {
-				MultiHandlesStructs[CurrentIndex].Memory = Buffers[CurrentIndex];
-				MultiHandlesStructs[CurrentIndex].Size = 0;
+    if (unlikely(Total > CURL_ARRAY_SIZE))
+        return -1;
 
-				curl_easy_setopt(CurlDownloadArray[CurrentIndex], CURLOPT_URL, Links[CurrentIndex]);
-				curl_easy_setopt(CurlDownloadArray[CurrentIndex], CURLOPT_WRITEDATA, &MultiHandlesStructs[CurrentIndex]);
-				curl_multi_add_handle(CurlMulti, CurlDownloadArray[CurrentIndex]);
-		}
+    for (uint16_t CurrentIndex = 0; CurrentIndex < Total; CurrentIndex++) {
+        MultiHandlesStructs[CurrentIndex].Memory = Buffers[CurrentIndex];
+        MultiHandlesStructs[CurrentIndex].Size = 0;
 
-		return 0;
+        curl_easy_setopt(CurlDownloadArray[CurrentIndex], CURLOPT_URL, Links[CurrentIndex]);
+        curl_easy_setopt(CurlDownloadArray[CurrentIndex], CURLOPT_WRITEDATA, &MultiHandlesStructs[CurrentIndex]);
+        curl_easy_setopt(CurlDownloadArray[CurrentIndex], CURLOPT_NOPROGRESS, 0L);
+        curl_easy_setopt(CurlDownloadArray[CurrentIndex], CURLOPT_XFERINFOFUNCTION, DownloadProgressCallback);
+
+        if (ProgressArray) {
+            curl_easy_setopt(CurlDownloadArray[CurrentIndex], CURLOPT_XFERINFODATA, &ProgressArray[CurrentIndex]);
+        }
+
+        curl_multi_add_handle(CurlMulti, CurlDownloadArray[CurrentIndex]);
+    }
+
+    return 0;
 }
 
 static int8_t GetNameFromContent(char const *ContentDisposition, DownloadStruct *StructPtr) {
@@ -181,7 +214,7 @@ static size_t WriteFileCallback(void *Contents, size_t Size, size_t nmemb, void 
 		return fwrite(Contents, Size, nmemb, Info->FileStream); /* Written bytes. */
 }
 
-static size_t WriteDataCallbackSimple(void *Contents, size_t Size, size_t DataSize, void *UserPointer) {
+size_t WriteDataCallbackSimple(void *Contents, size_t Size, size_t DataSize, void *UserPointer) {
 		size_t RequiredSize = Size * DataSize;
 		MemoryStruct *Memory = (MemoryStruct*)UserPointer;
 

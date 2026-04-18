@@ -1,5 +1,5 @@
-#include <Shared.h>
-#include <RC4.h>
+#include "../include/Shared.h"
+#include "../include/RC4.h"
 
 static char *GetEncryptionKey(char *Buffer) {
 		const char *KeyLocationFmt = "[Software\\\\Wine\\\\Credential Manager]";
@@ -38,11 +38,13 @@ char *GetCookie(char *UserId) {
 		free(EncryptionKey);
 		fclose(UserRegistry);
 		return CookieData;
+#if 0
 error:
 		free(KeyLocation);
 		free(EncryptionKey);
 		fclose(UserRegistry);
 		return NULL;
+#endif
 }
 
 char *SetCookie(char *UserId, char *Cookie) {

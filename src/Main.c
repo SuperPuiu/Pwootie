@@ -1,4 +1,4 @@
-#include <Shared.h>
+#include "../include/Shared.h"
 
 char *CDN_URL = "https://setup.rbxcdn.com/";
 
