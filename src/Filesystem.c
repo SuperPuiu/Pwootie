@@ -130,7 +130,7 @@ char *ReadFileToBuffer(FILE *Ptr, uint32_t *PtrSize) {
 		Size = ftell(Ptr);
 		fseek(Ptr, 0, SEEK_SET);
 
-		Buffer = malloc(Size * sizeof(char));
+		Buffer = malloc((Size + 1) * sizeof(char));
 
 		if (unlikely(!Buffer))
 				Error("[FATAL]: Unable to allocate Buffer during ReadFileToBuffer.", ERR_MEMORY);

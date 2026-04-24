@@ -101,6 +101,10 @@ char** ExtractInstructions(FILE *Installer, FetchStruct *Fetched) {
 
 								/* Get the package name. */
 								while (RawData[i] != '"') {
+										if (DstIndex >= Fetched->LongestName){
+											//printf("%s\n", "this shouldnt be happening bruh");
+											return NULL;
+										}
 										PackageName[DstIndex] = RawData[i];
 										i++;
 										DstIndex++;

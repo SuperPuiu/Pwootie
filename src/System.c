@@ -9,6 +9,7 @@
 
 #include <unistd.h>
 #include <fcntl.h>
+#include "ctype.h"
 
 extern char **environ;
 
@@ -16,7 +17,8 @@ extern char **environ;
 
 int32_t ExecProgram(char *Program, uint8_t Silent, uint8_t Disown, ...) {
 		char *CurrentArgument;
-		char **Packed = malloc(sizeof(char*) + 5);
+		//char **Packed = malloc(sizeof(char*) + 5);
+		char **Packed = malloc(sizeof(char*) * 5);
 
 		if (unlikely(!Packed))
 				Error("[ERROR]: Unable to allocate Packed during ExecProgram call.", ERR_MEMORY);
@@ -83,6 +85,23 @@ int32_t ExecProgram(char *Program, uint8_t Silent, uint8_t Disown, ...) {
 		free(Packed);
 		return WEXITSTATUS(WaitStatus);
 }
+static int validate_func(const char *path) {
+    if (path[0] != '/'){ 
+		//printf("%s\n", "why?");
+		return 0;
+	}
+    if (strstr(path, "..") != NULL){
+		//printf("%s\n", "shat");
+		return 0; 
+	}
+    for (const char *p = path; *p; p++) {
+        if (!isalnum((unsigned char)*p) && *p != '/' && *p != '.' && *p != '-' && *p != '_'){
+        	//printf("%s\n", "even more shat");
+			return 0;
+		}
+    }
+    return 1;
+}
 
 EnvInfoStruct *FetchEnvInfo(char *StudioVersion) {
 		FILE *WineVersionFile = NULL;
@@ -138,8 +157,11 @@ EnvInfoStruct *FetchEnvInfo(char *StudioVersion) {
 		EnvInfo->SessionType = EnvInfo->SessionType != NULL ? EnvInfo->SessionType : "NULL";
 		EnvInfo->DesktopEnvironment = EnvInfo->DesktopEnvironment != NULL ? EnvInfo->DesktopEnvironment : "NULL";
 
+		if (validate_func(WineExec) != 1){
+			Error("[ERROR]: Failed to validate wine_binary", ERR_STANDARD | ERR_NOEXIT);
+			goto error;
+		}
 		WineVersionFile = popen(CommandBuffer, "r");
-
 		if (unlikely(!WineVersionFile)) {
 				Error("[ERROR]: Failed to popen %s.", ERR_STANDARD | ERR_NOEXIT, CommandBuffer);
 				goto error;

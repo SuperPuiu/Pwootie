@@ -1,4 +1,5 @@
 #pragma once
+#include <stddef.h>
 #define _XOPEN_SOURCE 800
 
 #include <stdio.h>
@@ -37,6 +38,7 @@ typedef enum ErrorFlags {
 typedef struct MemoryStruct {
 		char    *Memory;
 		size_t  Size;
+		int64_t  zip_size;
 } MemoryStruct;
 
 typedef struct ResponseStruct {
@@ -132,7 +134,7 @@ extern CURLM    *CurlMulti;
 
 void            SetupHandles();
 void            ResetMultiCurl(uint16_t Total);
-int8_t          CurlMultiSetup(char **Buffers, char **Links, uint16_t Total);
+int8_t          CurlMultiSetup(char **Buffers, int64_t* sizes, char **Links, uint16_t Total);
 CURLcode        CurlDownload(FILE *File, char *WithURL);
 CURLcode        CurlGet(MemoryStruct *Chunk, char *WithURL);
 ResponseStruct* CurlDownloadNoFile(char *WithURL, char *DownloadPath);

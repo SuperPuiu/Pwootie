@@ -342,7 +342,7 @@ int8_t DownloadPackages(FetchStruct *Fetched, ZipMemoryStruct *ZipData, char *Ve
 				if (PackagesToDownload == 0)
 						break;
 
-				if (unlikely(CurlMultiSetup(BufferPointers, LinkPointers, PackagesToDownload) != 0)) {
+				if (unlikely(CurlMultiSetup(BufferPointers, ZipSizes, LinkPointers, PackagesToDownload) != 0)) {
 						Error("[ERROR]: CurlMultiSetup fail.", ERR_STANDARD | ERR_NOEXIT);
 						goto error;
 				}
