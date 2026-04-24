@@ -133,7 +133,7 @@ extern CURLM    *CurlMulti;
 
 void            SetupHandles();
 void            ResetMultiCurl(uint16_t Total);
-int8_t          CurlMultiSetup(char **Buffers, int64_t* sizes, char **Links, uint16_t Total);
+int8_t          CurlMultiSetup(char **Buffers, size_t *Sizes, char **Links, uint16_t Total);
 CURLcode        CurlDownload(FILE *File, char *WithURL);
 CURLcode        CurlGet(MemoryStruct *Chunk, char *WithURL);
 ResponseStruct* CurlDownloadNoFile(char *WithURL, char *DownloadPath);

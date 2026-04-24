@@ -285,7 +285,7 @@ int8_t DownloadPackages(FetchStruct *Fetched, ZipMemoryStruct *ZipData, char *Ve
 		char *LinkPointers[32];
 		char *RequiredChecksums[32];
 
-		int64_t ZipSizes[32];
+		size_t ZipSizes[32];
 
 		if (unlikely(!FullURL))
 				Error("[FATAL]: Failed to allocate memory for FullURL during DownloadPackages call.", ERR_MEMORY);

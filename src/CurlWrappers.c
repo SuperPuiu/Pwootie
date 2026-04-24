@@ -57,14 +57,14 @@ CURLcode CurlGet(MemoryStruct *Chunk, char *WithURL) {
 		return curl_easy_perform(CurlHandle);
 }
 
-int8_t CurlMultiSetup(char **Buffers, int64_t* sizes, char **Links, uint16_t Total) {
+int8_t CurlMultiSetup(char **Buffers, size_t *Sizes, char **Links, uint16_t Total) {
 		if (unlikely(Total > CURL_ARRAY_SIZE))
 				return -1;
 
 		for (uint16_t CurrentIndex = 0; CurrentIndex < Total; CurrentIndex++) {
 				MultiHandlesStructs[CurrentIndex].Memory = Buffers[CurrentIndex];
 				MultiHandlesStructs[CurrentIndex].Size = 0;
-				MultiHandlesStructs[CurrentIndex].zip_size = sizes[CurrentIndex];
+				MultiHandlesStructs[CurrentIndex].ZipSize = Sizes[CurrentIndex];
 
 				curl_easy_setopt(CurlDownloadArray[CurrentIndex], CURLOPT_URL, Links[CurrentIndex]);
 				curl_easy_setopt(CurlDownloadArray[CurrentIndex], CURLOPT_WRITEDATA, &MultiHandlesStructs[CurrentIndex]);
@@ -165,7 +165,7 @@ static size_t WriteFileCallback(void *Contents, size_t Size, size_t nmemb, void 
 				char TempBuffer[PATH_MAX];
 				uint32_t DownloadPathLen = strlen(Info->DownloadPath);
 				if (DownloadPathLen > PATH_MAX){
-					Error("[FATAL]: DOwnload path len overflows the allowed size", ERR_STANDARD);
+					Error("[FATAL]: Download path len overflows the allowed size", ERR_STANDARD);
 					return -1;
 				}
 
@@ -190,11 +190,12 @@ static size_t WriteFileCallback(void *Contents, size_t Size, size_t nmemb, void 
 static size_t WriteDataCallbackSimple(void *Contents, size_t Size, size_t DataSize, void *UserPointer) {
 		size_t RequiredSize = Size * DataSize;
 		MemoryStruct *Memory = (MemoryStruct*)UserPointer;
-		if (Memory->Size + RequiredSize > Memory->zip_size){
-			// printf("zip size: %lu\n", Memory->zip_size);
-			// printf("required size: %lu\n", RequiredSize);
-			return 0;
+
+		if (unlikely(Memory->Size + RequiredSize > Memory->ZipSize)) {
+				Error("[ERROR]: Memory->Size + RequiredSize is greater than the maximum Memory->ZipSize value.", ERR_STANDARD | ERR_NOEXIT);
+				return 0;
 		}
+
 		memcpy(&(Memory->Memory[Memory->Size]), Contents, RequiredSize);
 		Memory->Size += RequiredSize;
 		return RequiredSize;

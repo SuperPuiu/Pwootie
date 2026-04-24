@@ -39,8 +39,6 @@ void Error(char *String, uint8_t Flags, ...) {
 				goto out;
 		}
 
-		//vsprintf(ErrorFormatted, String, Arguments);
-		//vsnprintf(ErrorFormatted, sizeof(ErrorFormatted), NULL, Arguments);
 		vsnprintf(ErrorFormatted, sizeof(ErrorFormatted), String, Arguments);
 
 		memcpy(Path, getenv("HOME"), HomeLength);
