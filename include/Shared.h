@@ -1,5 +1,4 @@
 #pragma once
-#include <stddef.h>
 #define _XOPEN_SOURCE 800
 
 #include <stdio.h>
@@ -38,7 +37,7 @@ typedef enum ErrorFlags {
 typedef struct MemoryStruct {
 		char    *Memory;
 		size_t  Size;
-		int64_t  zip_size;
+		size_t  ZipSize;
 } MemoryStruct;
 
 typedef struct ResponseStruct {
@@ -101,7 +100,7 @@ int8_t   BuildDirectoryTree(char *Path, uint32_t SkipBytes);
 int8_t   CopyRelativeDir(char *Old, char *New);
 void     ConvertPath(char *Path);
 char     *BuildString(uint8_t Elements, ...);
-char 				*ReadFileToBuffer(FILE *Ptr, uint32_t *PtrSize);
+char 	 *ReadFileToBuffer(FILE *Ptr, uint32_t *PtrSize);
 char     *GetVersionPath(char *Version, uint32_t ExtraBytes);
 
 /* Wine.c */
