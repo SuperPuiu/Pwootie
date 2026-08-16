@@ -46,7 +46,7 @@ $(OUTPUT): $(OBJS)
 run:
 	./$(OUTPUT_TEST)
 clean:
-	rm $(BUILD_DIR)/*.*
+	rm $(BUILD_DIR)/*
 
 install:
 	sudo cp $(OUTPUT) /usr/bin/pwootie
