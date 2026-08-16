@@ -32,11 +32,16 @@ int8_t GetVersionData(VersionData *Data) {
 								uint32_t SpaceRequired = 0, Position = i + 1;
 								i++;
 
-								/* First find out how much we have to allocate */
-								do {
-										SpaceRequired++;
-										Position++;
-								} while (Chunk.Memory[Position] != '"');
+								/* First find out how much we have to allocate
+									* The response string MAY be empty! */
+								if (Chunk.Memory[Position] == '"') {
+										SpaceRequired = Position = 0;
+								} else {
+										do {
+												SpaceRequired++;
+												Position++;
+										} while (Chunk.Memory[Position] != '"');
+								}
 
 								String = malloc((SpaceRequired + 1) * sizeof(char));
 
