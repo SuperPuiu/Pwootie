@@ -62,6 +62,10 @@ static int32_t CopyEntry(const char *FilePath, const struct stat *StatBuffer, in
 						Copied += Written;
 				} while (Copied < StatBuffer->st_size);
 
+#ifndef NDEBUG
+				fprintf(stderr, "[TRACE]: Copying file with path \"%s\" to \"%s\"\n", FilePath, NewCopyPath);
+#endif
+
 				close(InputDescriptor);
 				close(OutputDescriptor);
 				return 0;
@@ -75,6 +79,10 @@ static int32_t CopyEntry(const char *FilePath, const struct stat *StatBuffer, in
 						Error("[ERROR]: mkdir failure on %s.", ERR_STANDARD | ERR_NOEXIT, NewCopyPath);
 						return -1;
 				}
+
+#ifndef NDEBUG
+				fprintf(stderr, "[TRACE]: Copying directory with path \"%s\" to \"%s\"\n", FilePath, NewCopyPath);
+#endif
 
 				return 0;
 		} else {
